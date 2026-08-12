@@ -1,0 +1,90 @@
+/**
+ * Growth of Garden — anonymous data collector
+ * Columns (in order): วันที่บันทึก | ช่วงอายุ | ชั้นปี | เพศ
+ *                      | แสงแดด · แรงใจ | น้ำ · การพักผ่อน
+ *                      | ราก · คนรอบข้าง | ท้องฟ้าสงบ · ไร้พายุ | สวนของคุณ | ภาษา
+ * (Add your own header row at the top of the sheet — this script only appends data rows below it.)
+ *
+ * HONEST NOTE ON "SECURITY": this endpoint is a public Apps Script web app.
+ * Its URL and the SHARED_TOKEN below are both visible to anyone who views the
+ * page source of growth-of-garden.html — so the token below is a spam filter,
+ * not real access control. It stops generic/automated bots and accidental
+ * garbage requests from writing rows; it cannot stop someone who deliberately
+ * reads the source and copies the token. That's an accepted tradeoff here
+ * because this is a low-stakes, fully anonymous internal survey — there's no
+ * sensitive per-person data at risk if someone spams a few fake rows.
+ *
+ * What this script DOES do for real: validates that an incoming request has
+ * the expected shape (all required fields present, roughly sane types) before
+ * writing anything — genuine server-side validation, not just a token check.
+ *
+ * DEBUG: Logger.log() calls write to the Executions log for every request,
+ * including rejected/malformed ones, so you can see exactly what arrived.
+ */
+var SHARED_TOKEN = 'gog-2026-sec11-wellbeing';
+var REQUIRED_FIELDS = ['age', 'year', 'gender', 'sunlight', 'water', 'roots', 'storms', 'garden', 'lang'];
+
+function doPost(e) {
+  Logger.log('doPost triggered');
+
+  if (!e || !e.postData || !e.postData.contents) {
+    Logger.log('No postData received — request body was empty or malformed.');
+    return jsonResponse('no data');
+  }
+
+  var data;
+  try {
+    data = JSON.parse(e.postData.contents);
+  } catch (err) {
+    Logger.log('JSON parse failed: ' + err.message);
+    return jsonResponse('bad json');
+  }
+
+  if (!data.token || data.token !== SHARED_TOKEN) {
+    Logger.log('Token mismatch — rejecting (spam filter, see file header note).');
+    return jsonResponse('rejected');
+  }
+
+  for (var i = 0; i < REQUIRED_FIELDS.length; i++) {
+    var field = REQUIRED_FIELDS[i];
+    if (typeof data[field] !== 'string' || data[field].length === 0) {
+      Logger.log('Missing/invalid required field: ' + field);
+      return jsonResponse('missing field: ' + field);
+    }
+  }
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  sheet.appendRow([
+    new Date(),
+    data.age,
+    data.year,
+    data.gender,
+    data.sunlight,
+    data.water,
+    data.roots,
+    data.storms,
+    data.garden,
+    data.lang
+  ]);
+
+  Logger.log('Row appended successfully.');
+  return jsonResponse('ok');
+}
+
+function jsonResponse(status) {
+  return ContentService
+    .createTextOutput(JSON.stringify({status: status}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Run this function manually from the Apps Script editor (select it from the
+ * function dropdown, click Run) to confirm the script itself can write to the
+ * sheet at all, independent of any web request. If this fails, the problem is
+ * permissions/sheet access, not the app or the network.
+ */
+function testAppendRow() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  sheet.appendRow([new Date(), 'TEST-AGE', 'TEST-YEAR', 'TEST-GENDER', 'TEST', 'TEST', 'TEST', 'TEST', 'TEST-GARDEN', 'TEST']);
+  Logger.log('Manual test row appended.');
+}
