@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Growth of Garden · สวนของเรา</title>
+<style>
+/* ============================================================
+   GROWTH OF GARDEN — scaffold
+   Single-file bilingual wellbeing check-in.
+   Swap real content in the marked >>> PLACEHOLDER <<< blocks.
+   ============================================================ */
+
+/* ---- fonts (Thai + English storybook pairing) ---- */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&family=Quicksand:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg-a:#dff0e6; --bg-b:#cfe6dd; --bg-c:#f3ecd9;
+  --ink:#3a4a42; --ink-soft:#5f7168;
+  --card:rgba(255,255,255,.62);
+  --card-line:rgba(255,255,255,.75);
+  --accent:#7fb59a; --accent-deep:#5c9a7d;
+  --sun:#f2c265; --rain:#8fb4d4; --autumn:#cf9b5f; --bloom:#e79bb4;
+  --shadow:0 12px 34px rgba(60,90,75,.20);
+  --radius:26px;
+  --font-th:'Sarabun',sans-serif;
+  --font-en:'Quicksand',sans-serif;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:var(--font-th);
+  color:var(--ink);
+  background:linear-gradient(160deg,var(--bg-a),var(--bg-b) 55%,var(--bg-c));
+  overflow:hidden;
+  user-select:none;
+}
+body.en{font-family:var(--font-en)}
+
+#app{
+  position:relative;
+  height:100dvh;
+  width:100%;
+  max-width:440px;
+  margin:0 auto;
+  overflow:hidden;
+  background-size:cover;
+  background-position:center;
+  transition:background-image .6s ease;
+  box-shadow:0 0 60px rgba(60,90,75,.18);
+}
+/* phone-only base: frame the column on wider screens */
+@media (min-width:520px){
+  body{display:flex;align-items:center;justify-content:center;padding:0}
+  #app{height:min(100dvh,900px);border-radius:28px}
+}
+
+/* ---- ambient floating leaves ---- */
+.ambient{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1}
+.leaf{position:absolute;top:-40px;font-size:20px;opacity:.5;animation:fall linear infinite}
+@keyframes fall{
+  0%{transform:translateY(-40px) rotate(0deg)}
+  100%{transform:translateY(110dvh) rotate(360deg)}
+}
+
+/* ---- generic screen ---- */
+.screen{
+  position:absolute;inset:0;z-index:2;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:26px 22px;
+  opacity:0;pointer-events:none;
+  transition:opacity .45s ease;
+}
+.screen.active{opacity:1;pointer-events:auto}
+#result.active{overflow-y:auto;justify-content:flex-start;padding-top:44px;padding-bottom:60px}
+/* intro + story pages stay centered like paper notes */
+#intro.active,#story.active{justify-content:center}
+/* soft dark scrim at the bottom so text reads over any art */
+#story::after,#walk::after{content:'';position:absolute;left:0;right:0;top:0;bottom:0;
+  background:radial-gradient(ellipse 90% 55% at 50% 50%,rgba(247,244,238,.82),rgba(247,244,238,.30) 70%,transparent);
+  z-index:1;pointer-events:none}
+#walkQ::after{display:none}
+
+/* ---- frosted card (result + paper intro) ---- */
+.card{
+  background:var(--card);
+  border:1px solid var(--card-line);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:26px 24px;
+  width:100%;
+  text-align:center;
+}
+/* ---- paper-note card for intro/story pages ---- */
+.consent-note{background:var(--paper,#fdf9f0);border:1px solid var(--card-line);border-radius:18px;
+  padding:22px 20px;text-align:left;max-width:400px;margin:0 auto;box-shadow:0 6px 24px rgba(0,0,0,.12)}
+.consent-title{font-size:19px;font-weight:700;margin-bottom:14px;text-align:center;color:var(--accent-deep);white-space:pre-line}
+.consent-list{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.consent-list li{font-size:14.5px;line-height:1.6;padding-left:20px;position:relative}
+.consent-list li::before{content:'🌿';position:absolute;left:0;font-size:12px}
+.consent-btns{display:flex;flex-direction:column;gap:8px;align-items:center}
+.consent-decline{background:none;border:none;font-size:13.5px;color:var(--muted,#8a8579);text-decoration:underline;padding:6px}
+.demo-block{margin-bottom:18px}
+.demo-label{font-size:14.5px;font-weight:700;margin-bottom:8px;color:var(--accent-deep)}
+.demo-opts{display:flex;flex-wrap:wrap;gap:8px}
+.demo-opt{background:rgba(255,255,255,.82);border:1px solid rgba(255,255,255,.9);
+  border-radius:40px;padding:9px 16px;font-size:14px;line-height:1.3;
+  text-align:center;cursor:pointer;transition:all .15s ease;color:var(--ink);
+  box-shadow:0 4px 12px rgba(60,90,75,.14)}
+.demo-opt:active{transform:scale(.97)}
+.demo-opt.sel{background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:#fff;border-color:transparent}
+.note{
+  position:relative;z-index:3;
+  background:rgba(252,250,244,.94);
+  border-radius:14px;
+  box-shadow:0 14px 40px rgba(60,70,50,.28), inset 0 0 0 1px rgba(120,110,90,.15);
+  padding:30px 26px;width:100%;max-width:340px;text-align:center;
+}
+.note::before,.note::after{content:'';position:absolute;width:9px;height:9px;border-radius:50%;
+  background:rgba(90,80,60,.35);top:16px}
+.note::before{left:18px}
+.note::after{right:18px}
+
+/* ---- top progress bar ---- */
+.progress{position:absolute;top:14px;left:22px;right:22px;height:7px;border-radius:20px;
+  background:rgba(255,255,255,.55);z-index:8;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);
+  opacity:0;transition:opacity .4s}
+.progress.show{opacity:1}
+.progress-fill{height:100%;width:0;border-radius:20px;
+  background:linear-gradient(90deg,var(--accent),var(--accent-deep));transition:width .5s cubic-bezier(.3,1,.4,1)}
+
+/* ---- keeper character ---- */
+.keeper{
+  display:none;
+  width:96px;height:96px;border-radius:50%;
+  object-fit:cover;
+  filter:drop-shadow(0 0 16px rgba(242,194,101,.75));
+  animation:bob 4s ease-in-out infinite;
+}
+.keeper.mini{width:52px;height:52px}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+
+/* ---- intro ---- */
+#intro .keeper{margin-bottom:14px}
+.title{font-family:var(--font-en);font-weight:700;font-size:30px;letter-spacing:.5px;color:var(--accent-deep)}
+.subtitle{font-size:15px;color:var(--ink-soft);margin-top:6px}
+.lead{font-size:17px;line-height:1.7;margin:18px 0 10px}
+.caption{font-size:12.5px;color:var(--ink-soft);opacity:.9}
+
+/* ---- buttons ---- */
+.btn{
+  font-family:var(--font-en);font-weight:600;font-size:16px;
+  color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent-deep));
+  border:none;border-radius:40px;
+  padding:13px 30px;margin-top:20px;
+  cursor:pointer;box-shadow:0 8px 20px rgba(92,154,125,.4);
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.btn:active{transform:scale(.96)}
+.btn.ghost{background:rgba(255,255,255,.4);color:var(--accent-deep);box-shadow:none;border:1px solid var(--card-line)}
+
+/* ---- narration: text laid over the art ---- */
+.bubble-wrap{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:14px;width:100%}
+.bubble{
+  font-size:18px;line-height:1.85;color:var(--ink);
+  text-align:center;width:100%;white-space:pre-line;
+  text-shadow:0 1px 10px rgba(247,244,238,.9),0 1px 2px rgba(247,244,238,1);
+  padding:0 4px;
+}
+#story .bubble{font-size:17px;line-height:1.8}
+.tap-hint{font-family:var(--font-en);font-size:13px;color:var(--ink-soft);opacity:0;pointer-events:none}
+.tap-hint.reveal{animation:hintIn 1.6s ease-out 2s forwards, blink 2.6s ease-in-out 3.6s infinite}
+@keyframes hintIn{from{opacity:0}to{opacity:1}}
+@keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+
+/* ---- question: prompt + pill options over art ---- */
+#walkQ{position:relative;z-index:3;background:none;border:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:0;width:100%;text-align:center}
+.qhead{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:18px}
+.prompt{font-size:18px;line-height:1.65;margin-bottom:4px;
+  text-shadow:0 1px 10px rgba(247,244,238,.9),0 1px 2px rgba(247,244,238,1)}
+.opts{display:flex;flex-direction:column;gap:12px;width:100%;margin-top:6px}
+.opt{
+  background:rgba(255,255,255,.82);border:1px solid rgba(255,255,255,.9);
+  border-radius:40px;padding:15px 20px;font-size:15.5px;line-height:1.45;
+  text-align:center;cursor:pointer;transition:all .15s ease;color:var(--ink);
+  box-shadow:0 6px 18px rgba(60,90,75,.16);backdrop-filter:blur(4px)
+}
+.opt:active{transform:scale(.98)}
+.opt.sel{background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:#fff;border-color:transparent}
+
+/* ---- result ---- */
+.r-title{font-family:var(--font-en);font-weight:700;font-size:27px;margin-bottom:2px}
+.r-sub{font-size:15px;color:var(--ink-soft);margin-bottom:16px}
+.scene{
+  position:relative;width:100%;height:210px;margin:6px 0 14px;
+  border-radius:22px;overflow:hidden;
+  background:linear-gradient(180deg,#eaf5ee,#dcecdf);
+  border:1px solid var(--card-line);
+}
+.scene .soil{position:absolute;left:0;right:0;bottom:0;width:100%}
+.scene .tree{position:absolute;left:50%;bottom:18%;transform:translateX(-50%);height:70%;animation:bob 5s ease-in-out infinite}
+.scene .fl{position:absolute;bottom:14%;height:26px;animation:bob 4s ease-in-out infinite}
+.r-summary{font-size:16px;line-height:1.7;margin:6px 4px 16px}
+.cute-quote{font-size:16px;line-height:1.6;text-align:center;color:var(--accent-deep);background:rgba(255,255,255,.55);border:1px solid var(--card-line);border-radius:18px;padding:14px 16px;margin:0 2px 16px;font-weight:600}
+.box{background:rgba(255,255,255,.5);border:1px solid var(--card-line);border-radius:18px;padding:16px 18px;text-align:left;margin-bottom:14px}
+.box h4{font-family:var(--font-en);font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--accent-deep);margin-bottom:8px}
+.box ul{list-style:none;display:flex;flex-direction:column;gap:6px}
+.box li{font-size:15px;line-height:1.5;padding-left:18px;position:relative}
+.box li::before{content:'🌱';position:absolute;left:0;font-size:12px}
+.box.key li::before{content:'✿'}
+.keymsg{font-size:15.5px;line-height:1.7;white-space:pre-line}
+.r-summary{white-space:pre-line}
+
+/* ---- score bars ---- */
+.bars{display:flex;flex-direction:column;gap:12px;margin:4px 0 16px;width:100%}
+.bar-row{display:flex;flex-direction:column;gap:5px}
+.bar-top{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft)}
+.bar-track{height:9px;border-radius:20px;background:rgba(92,154,125,.16);overflow:hidden}
+.bar-fill{height:100%;border-radius:20px;width:0;transition:width .9s cubic-bezier(.3,1,.4,1)}
+
+/* ---- support box (conditional) ---- */
+.support{background:rgba(143,180,212,.16);border:1px solid rgba(143,180,212,.4)}
+.support h4{color:#5a86a8}
+
+/* ---- disclaimer ---- */
+.disclaimer{font-size:11.5px;color:var(--ink-soft);opacity:.8;line-height:1.6;margin-top:10px;text-align:center;padding:0 4px}
+
+/* ---- top controls ---- */
+.topbar{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;padding:14px 16px;pointer-events:none}
+.topbar > *{pointer-events:auto}
+.pill{font-family:var(--font-en);font-size:13px;font-weight:600;background:rgba(255,255,255,.55);border:1px solid var(--card-line);border-radius:30px;padding:7px 12px;cursor:pointer;color:var(--ink);backdrop-filter:blur(8px)}
+.left-ctrls{display:flex;gap:8px}
+
+/* ---- scroll hint ---- */
+.scrollhint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:6;font-size:22px;color:var(--accent-deep);animation:bob 1.6s ease-in-out infinite;transition:opacity .4s;pointer-events:none}
+
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- top controls -->
+  <div class="topbar">
+    <button class="pill" id="muteBtn" style="display:none">🔊</button>
+    <button class="pill" id="langBtn">EN</button>
+  </div>
+
+  <div class="ambient" id="ambient"></div>
+
+  <div class="progress" id="progress"><div class="progress-fill" id="progressFill"></div></div>
+
+  <!-- ============ INTRO ============ -->
+  <section class="screen" id="intro">
+    <div class="note">
+    <img class="keeper" id="introKeeper" alt="" style="margin-bottom:8px">
+      <div class="title" id="introTitle"></div>
+      <div class="subtitle" id="introSub"></div>
+      <div class="lead" id="introLead"></div>
+      <div class="caption" id="introCaption"></div>
+      <button class="btn" id="startBtn"></button>
+    </div>
+    </div>
+  </section>
+
+  <!-- ============ STORY ============ -->
+  <section class="screen" id="story">
+    <div class="bubble-wrap">
+      <img class="keeper" id="storyKeeper" alt="">
+      <div class="bubble" id="storyBubble"></div>
+      <div class="tap-hint" id="storyHint"></div>
+      <button class="btn" id="storyBegin" style="display:none"></button>
+    </div>
+  </section>
+
+  <!-- ============ CONSENT ============ -->
+  <section class="screen" id="consent">
+    <div class="consent-note">
+      <div class="consent-title" id="consentTitle"></div>
+      <ul class="consent-list" id="consentList"></ul>
+      <div class="consent-btns">
+        <button class="btn" id="consentAgree"></button>
+        <button class="consent-decline" id="consentDecline"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DEMOGRAPHICS ============ -->
+  <section class="screen" id="demo">
+    <div class="consent-note">
+      <div class="consent-title" id="demoTitle"></div>
+
+      <div class="demo-block">
+        <div class="demo-label" id="demoAgeLabel"></div>
+        <div class="demo-opts" id="demoAgeOpts"></div>
+      </div>
+
+      <div class="demo-block">
+        <div class="demo-label" id="demoYearLabel"></div>
+        <div class="demo-opts" id="demoYearOpts"></div>
+      </div>
+
+      <div class="demo-block">
+        <div class="demo-label" id="demoGenderLabel"></div>
+        <div class="demo-opts" id="demoGenderOpts"></div>
+      </div>
+
+      <div class="consent-btns">
+        <button class="btn" id="demoContinue"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WALK ============ -->
+  <section class="screen" id="walk">
+    <!-- narration sub-view -->
+    <div class="bubble-wrap" id="walkNarr">
+      <img class="keeper" id="walkKeeper" alt="">
+      <div class="bubble" id="walkBubble"></div>
+      <div class="tap-hint" id="walkHint"></div>
+      <button class="btn" id="walkReveal" style="display:none"></button>
+    </div>
+    <!-- question sub-view -->
+    <div class="card" id="walkQ" style="display:none">
+      <div class="qhead">
+        <img class="keeper mini" id="qKeeper" alt="">
+      </div>
+      <div class="prompt" id="qPrompt"></div>
+      <div class="opts" id="qOpts"></div>
+    </div>
+  </section>
+
+  <!-- ============ RESULT ============ -->
+  <section class="screen" id="result">
+    <div class="card">
+      <div class="r-title" id="rTitle"></div>
+      <div class="r-sub" id="rSub"></div>
+      <div class="scene" id="rScene"></div>
+      <div class="r-summary" id="rSummary"></div>
+      <div class="cute-quote" id="rQuote"></div>
+
+      <div class="box" id="rCharBox">
+        <h4 id="rCharLabel"></h4>
+        <ul id="rChar"></ul>
+      </div>
+
+      <div class="box key">
+        <h4 id="rKeyLabel"></h4>
+        <div class="keymsg" id="rKey"></div>
+      </div>
+
+      <div class="bars" id="rBars"></div>
+
+      <div class="box support" id="rSupport" style="display:none">
+        <h4 id="rSupportLabel"></h4>
+        <div class="keymsg" id="rSupportText"></div>
+      </div>
+
+      <button class="btn" id="saveBtn"></button>
+      <button class="btn ghost" id="restartBtn"></button>
+
+      <div class="disclaimer" id="rDisclaimer"></div>
+    </div>
+  </section>
+
+  <div class="scrollhint" id="scrollHint">⌄</div>
+
+</div>
+
+<script>
+/* ================================================================
+   ART PLACEHOLDERS (small, inline)
+   Tiny generated SVGs stand in for the keeper, trees and flowers.
+   They stay inline because they cost only a few hundred bytes each.
+   >>> Replace with real watercolor art when it's ready. <<<
+   Anything heavy (music, painted backgrounds) goes on the CDN
+   instead — see REMOTE ASSETS below.
+   ================================================================ */
+const PX = "data:image/svg+xml;utf8," + encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><rect width='120' height='120' rx='18' fill='%23bcdcc9'/><text x='60' y='68' font-size='40' text-anchor='middle'>🌱</text></svg>"
+);
+const emojiArt = (e)=> "data:image/svg+xml;utf8,"+encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='140' height='180'><text x='70' y='120' font-size='96' text-anchor='middle'>"+e+"</text></svg>");
+const soilArt = "data:image/svg+xml;utf8,"+encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='400' height='70'><rect width='400' height='70' fill='%23b98d63'/><rect width='400' height='14' fill='%237faf83'/></svg>");
+
+const KEEPER_IMG = PX; // >>> real keeper character here <<<
+
+const ART = {
+  tree:{
+    blooming: emojiArt('🌸'),   // >>> real blooming tree <<<
+    growing:  emojiArt('🌿'),   // >>> real growing tree  <<<
+    rainy:    emojiArt('🌧️'),   // >>> real rainy tree    <<<
+    autumn:   emojiArt('🍂'),   // >>> real autumn tree   <<<
+  },
+  flower:{
+    a: emojiArt('🌼'), b: emojiArt('🌷'), c: emojiArt('🌸'),  // >>> real flowers <<<
+  }
+};
+
+/* ================================================================
+   REMOTE ASSETS (jsDelivr CDN over the GitHub repo)
+   Heavy binaries -- the music track and, later, the gouache
+   backgrounds -- live in /assets in the repo instead of being
+   base64'd into this file. That is the whole reason this file is
+   ~100KB and not 5.2MB.
+
+   To swap art: upload the file to /assets on GitHub keeping the
+   same filename, and it goes live. jsDelivr caches @main for about
+   12 hours; to publish instantly, load the matching URL on
+   https://purge.jsdelivr.net/gh/... once.
+   ================================================================ */
+const CDN = 'https://cdn.jsdelivr.net/gh/HLYJezz/Growth-of-garden@main/assets/';
+
+/* Painted instantly while a background downloads, and kept permanently if the
+   CDN is unreachable (campus/hospital wifi). Screen is never blank or broken. */
+const BG_FALLBACK = 'linear-gradient(180deg,#cfe3ea 0%,#e3e9d6 55%,#f2ead9 100%)';
+
+const ASSETS = {
+  soil: soilArt,                 // >>> real soil strip <<<
+  // DECISION: all 6 slots intentionally share one image for now — this is the
+  // placeholder state, not an oversight. The real plan is per-scene gouache
+  // illustrations (gate/sky/soil/roots/flowers/path), generated separately.
+  // To swap one in: upload it to /assets on GitHub and put its filename here.
+  // Slots take a CDN filename, or a full data:/http/url(...) value, or a
+  // CSS gradient string — setBg() handles all four.
+  backgrounds:{
+    bg0:'bg-main.jpg', bg1:'bg-main.jpg', bg2:'bg-main.jpg', bg3:'bg-main.jpg',
+    bg4:'bg-main.jpg', bg5:'bg-main.jpg', bg6:'bg-main.jpg',
+  }
+};
+
+/* Looping music, streamed from the CDN. Embedding this was 5.2MB of the file. */
+const MUSIC_SRC = CDN + 'music.mp3';
+
+/* ================================================================
+   i18n  —  >>> PLACEHOLDER COPY. Paste Bam's real text here. <<<
+   Keyed narration pages referenced by WALK[].key
+   ================================================================ */
+const T = {
+  th:{
+    ui:{ lang:'EN', start:'เข้าสู่สวน', begin:'เริ่มเดิน', reveal:'เปิดดูสวนของฉัน',
+         save:'บันทึกผลลัพธ์', restart:'เริ่มใหม่', tap:'▾ แตะเพื่อไปต่อ',
+         of:'จาก', charLabel:'ลักษณะ', keyLabel:'ข้อความถึงคุณ',
+         supportLabel:'แหล่งช่วยเหลือ', disclaimer:'เครื่องมือนี้เป็นการสะท้อนการเติบโตของตนเอง ไม่ใช่การประเมินหรือวินิจฉัยทางการแพทย์' },
+    consent:{ title:'ข้อตกลงและความเป็นส่วนตัว',
+      points:[
+        'คุณยินยอมให้เรารวบรวมคำตอบของคุณแบบไม่ระบุตัวตน พร้อมช่วงอายุ ชั้นปี และเพศ เพื่อให้เข้าใจภาพรวมสุขภาวะของนักศึกษาแพทย์ทั่วประเทศ',
+        'เราไม่เก็บชื่อ ไม่เก็บรหัสนักศึกษา และไม่มีทางย้อนกลับมาหาคุณได้',
+        'ข้อมูลจะไม่ถูกเผยแพร่หรือใช้ในเชิงพาณิชย์',
+        'คุณสามารถเลือกที่จะไม่ยินยอมและยังคงใช้งานแบบทดสอบนี้ได้ตามปกติ (แค่จะไม่มีการส่งข้อมูล)'
+      ],
+      agree:'ยินยอม', decline:'ไม่ยินยอม' },
+    demo:{ title:'ก่อนเข้าไปข้างใน...\nอยากรู้จักคุณอีกสักนิด',
+      age:'ช่วงอายุ', year:'ชั้นปีที่กำลังศึกษา', gender:'เพศ',
+      ageOpts:['18–19','20–22','23–25','26+'],
+      yearOpts:['ปี 1','ปี 2','ปี 3','ปี 4','ปี 5','ปี 6'],
+      genderOpts:['ชาย','หญิง','ไม่ต้องการระบุ'],
+      cont:'ดำเนินการต่อ' },
+    intro:{ title:'Growth of Garden', sub:'สวนของเรา',
+            lead:'สวนแห่งหนึ่งที่ปลูกด้วยวันเวลาของคุณ — ลองเดินเข้าไปดูไหม ว่าตอนนี้มันเติบโตแบบไหน',
+            caption:'ทุกสวนต่างมีฤดูกาลของตัวเอง และทุกฤดูกาลล้วนมีคุณค่า' },
+    story:[
+      '📱 คำแนะนำสำหรับผู้ใช้งาน iOS\n\nเปิดใช้งานเว็บไซต์ผ่าน Safari\nและซ่อนแถบเครื่องมือ',
+      '🔊 คำแนะนำ\n\nเปิดเสียงในเครื่องของคุณ\nเพื่อประสบการณ์ที่ดีขึ้น',
+      'ตลอดเส้นทางการเป็นนักศึกษาแพทย์\nเรามักใช้เวลาไปกับการดูแลผู้อื่น\nอ่านหนังสือเพื่อสอบ\nพัฒนาตัวเองให้ดีขึ้น\nพยายามก้าวไปข้างหน้าอยู่เสมอ',
+      'จนบางครั้ง\nเราอาจลืมหันกลับมาดูแลตัวเอง',
+      'วันนี้ เราเลยอยากชวนคุณเดินเข้ามาในสวนแห่งหนึ่ง\n\nสวนแห่งนี้ไม่เหมือนสวนทั่วไป\nมันไม่ได้ปลูกด้วยดินและน้ำ\nแต่ปลูกด้วยวันเวลาที่คุณใช้ไป',
+      'ตรงหน้าคุณมีประตูไม้บานหนึ่ง\nเถาไม้เลื้อยพันอยู่รอบซุ้มโค้ง\n\nสวนนี้มีอยู่มานานแล้ว\nมันแค่รอให้คุณแวะมาเยี่ยมสักครั้ง',
+      'ก่อนเปิดประตู ลองหายใจเข้าลึก ๆ สักครั้ง\n\nข้างในไม่มีอะไรต้องรีบ\nไม่มีใครรอตรวจคำตอบของคุณ\nมีแค่คุณ กับสวนของคุณเท่านั้น',
+      'ทุกมุมของสวนนี้จะสะท้อนบางอย่างในชีวิตของคุณ\n\nไม่ต้องรีบ ไม่มีคำตอบที่ถูกหรือผิด\nแค่ตอบตามที่รู้สึกจริง ๆ ก็พอ'
+    ],
+    narr:{
+      sky:'เงยหน้ามองท้องฟ้าของสวน\n\nแสงแดดในสวนนี้\nคือแรงที่ปลุกคุณให้ลุกขึ้นในแต่ละวัน\n\nลองนึกดู —\nเมื่อคุณนึกถึงสิ่งที่ต้องทำในวันพรุ่งนี้\nความรู้สึกแรกที่ผุดขึ้นมาคืออะไร',
+      skyAfter:'คุณเพิ่งใช้เวลาอยู่กับตัวเองสักครู่\nและบางครั้ง การรับรู้ความรู้สึกของตัวเอง\nก็เป็นการดูแลตัวเองรูปแบบหนึ่ง',
+      soil:'ก้มลงสัมผัสผืนดิน\n\nดินคือที่ที่ทุกอย่างได้พัก ได้ฟื้น\nก่อนจะเติบโตใหม่\n\nแล้วร่างกายของคุณล่ะ\nได้พักแบบนั้นบ้างไหม\nลองนึกถึงเช้าวันหยุดที่ไม่มีอะไรต้องทำ...',
+      soilAfter:'คุณไม่จำเป็นต้องออกดอกตลอดเวลา\nสวนที่ดีไม่ได้งดงามเพราะมันผลิบานทุกวัน\nแต่งดงามเพราะมันรู้ว่าเมื่อไรควรพัก',
+      roots:'ใต้ผืนดินลงไป มีรากที่มองไม่เห็น\n\nรากไม่เคยอวดตัวเอง\nแต่มันคือสิ่งที่ยึดต้นไม้ไว้\nในวันที่ลมแรง',
+      rootsB:'คนเราก็มีรากเหมือนกัน —\nคนที่เรานึกถึงในวันที่หนัก',
+      rootsAfter:'คุณไม่จำเป็นต้องเติบโตเพียงลำพัง\nแม้แต่ต้นไม้ที่แข็งแรงที่สุด\nก็ยังต้องพึ่งพารากของตัวเอง',
+      weather:'ทุกสวนต้องเจอสภาพอากาศของมัน\n\nฝนและพายุไม่เคยขออนุญาตก่อนมา\nเหมือนความเครียดในชีวิตเรา',
+      flowers:'ดอกไม้ในสวนนี้ไม่ได้บานเพื่อให้ใครเห็น\n\nมันบานทุกครั้งที่คุณทำอะไรสำเร็จ\nแม้เรื่องเล็กที่สุด',
+      path:'สุดสวนมีทางเดินทอดยาวออกไป\n\nทางเดินสายนี้คือวันข้างหน้าของคุณ\nไม่มีใครรู้ว่ามันไปสิ้นสุดที่ไหน\nแม้แต่คนดูแลสวนเอง',
+      closing:'คุณเดินมาถึงใจกลางสวนแล้ว\n\nทุกคำตอบของคุณได้กลายเป็นแสง เป็นน้ำ\nเป็นราก เป็นฟ้า ของสวนแห่งนี้\n\nพร้อมไหม...\nที่จะเห็นว่าสวนของคุณกำลังเติบโตแบบไหน'
+    },
+    q:[
+      {prompt:'แล้วท้องฟ้าเช้าพรุ่งนี้ของคุณ... เป็นแบบไหน',
+       opts:['แดดลอดม่านมาแตะหน้าต่างก่อนใคร',
+             'ฟ้าโปร่งพอให้เดินได้ทั้งวัน',
+             'ฟ้าสีเทาเรียบ ๆ ไม่มีลม',
+             'อยากดึงเมฆลงมาห่มแล้วหลับต่อ']},
+      {prompt:'ผืนดินของคุณในเช้าวันหยุดแบบนั้น... เป็นแบบไหน',
+       opts:['ดินชุ่ม หอมกลิ่นฝนเมื่อคืน',
+             'ดินยังดี แค่ขอน้ำอีกสักหน่อย',
+             'รดน้ำเท่าไหร่ ดินก็ยังแห้งอยู่ข้างใน',
+             'ดินอยากหลับยาวทั้งฤดู']},
+      {prompt:'ถ้าวันนี้ลมแรงขึ้นมา รากของคุณเป็นแบบไหน',
+       opts:['รากแตะถึงรากต้นข้าง ๆ ได้ทันที',
+             'รู้ว่ารากเพื่อนบ้านอยู่แถวไหน แต่ต้องคลำหาสักพัก',
+             'อยากยื่นรากไปเกาะ แต่กลัวถ่วงต้นอื่น',
+             'ยืนรับลมด้วยรากของตัวเองต้นเดียว']},
+      {prompt:'ช่วง 1-2 สัปดาห์ที่ผ่านมา อากาศในสวนของคุณเป็นแบบไหนบ่อยที่สุด',
+       opts:['ฝนมาแล้วก็ไป ฟ้าเปิดเร็ว',
+             'ฟ้าร้องเป็นพัก ๆ ใบไม้สั่นบ้างบางครั้ง',
+             'เมฆครึ้มค้างฟ้าอยู่แทบทุกวัน',
+             'โดนพายุจนชิน แทบไม่รู้สึกถึงฝนแล้ว']},
+      {prompt:'ช่วงนี้ ดอกไม้ในสวนของคุณเป็นแบบไหน',
+       opts:['ดอกแรกบาน ก็อยากชวนใครมาดู',
+             'บานแวบเดียว กลีบก็ร่วงไป',
+             'บานก็เหมือนไม่บาน — มันควรจะบานอยู่แล้ว',
+             'มองทั้งสวน ก็ไม่เห็นว่ามีอะไรเคยบาน']},
+      {prompt:'เมื่อมองทางเดินสายนั้น ใจคุณรู้สึกแบบไหน',
+       opts:['อยากรู้ว่าโค้งข้างหน้ามีอะไรรออยู่',
+             'มีหมอกบาง ๆ แต่เชื่อว่าเดินไปคงเจอทาง',
+             'แค่มองทางไกล ๆ ก็เหนื่อยแล้ว',
+             'ยืนตรงทางแยก นึกไม่ออกว่าไปทางไหน']},
+    ],
+    bands:{
+      blooming:{name:'🌸 Blooming Garden', sub:'สวนที่กำลังออกดอก',
+        summary:'ช่วงนี้ใจคุณเหมือนสวนที่กำลังผลิบานเต็มที่ มีแดดอุ่น ๆ ส่องลงมา มีแรงที่จะเดินต่อ และมองเห็นความหมายในสิ่งที่กำลังทำอยู่ ดอกไม้ในสวนของคุณกำลังบานสะพรั่ง ต้นไม้แข็งแรง และอากาศก็ดีต่อการเติบโต นี่คือช่วงเวลาที่คุณได้เก็บเกี่ยวผลของการดูแลตัวเองมาตลอด อย่าลืมหยุดชื่นชมมันสักนิดนะ',
+        char:['มีไฟและมีความสุขกับสิ่งที่กำลังทำ','มีคนรอบตัวที่คอยสนับสนุนและทำให้อุ่นใจ','เครียดได้บ้าง แต่พอเรื่องจบใจก็กลับมาเบาได้เร็ว','ยังมองเห็นเป้าหมายและเส้นทางของตัวเองชัดเจน'],
+        quote:'วันนี้เก่งมากเลยน้า ภูมิใจในตัวเองด้วยล่ะ 🌷',
+        key:'คุณไม่จำเป็นต้องออกดอกตลอดเวลา\nแต่ในช่วงเวลานี้ อย่าลืมหยุดมองความงดงามของสิ่งที่คุณเติบโตมาแล้วด้วย'},
+      growing:{name:'🌿 Growing Garden', sub:'สวนที่กำลังเติบโต',
+        summary:'คุณเหมือนต้นไม้ที่กำลังค่อย ๆ เติบโตขึ้นทุกวัน บางวันอาจเจอลมแรงหรือรู้สึกเหนื่อยบ้างตามทาง แต่รากของคุณยังหยั่งลึกและลำต้นยังมั่นคง คุณอาจยังไปไม่ถึงจุดที่ฝันไว้ แต่ทุกก้าวที่เดินมาล้วนทำให้คุณโตขึ้นกว่าเมื่อวาน การเติบโตไม่เคยวัดกันที่ความเร็ว มันวัดกันที่การที่คุณยังไม่หยุดเดินต่างหาก',
+        char:['เหนื่อยบ้างเป็นเรื่องธรรมดาของคนที่กำลังพยายาม','ยังเชื่อมั่นว่าตัวเองกำลังเติบโตขึ้นเรื่อย ๆ','ยังมองเห็นเป้าหมายข้างหน้าแม้ทางจะยาว','บางเช้ายังอยากนอนต่อ แต่สุดท้ายก็ลุกมาทำสิ่งที่ตั้งใจเสมอ'],
+        quote:'ค่อย ๆ โตไปด้วยกันนะ ไม่ต้องรีบก็ได้ 🌱',
+        key:'การเติบโตไม่ได้วัดจากความเร็ว\nแม้ทางข้างหน้าจะยังไม่ชัด แต่ทุกก้าวที่คุณเดินก็ยังเป็นการเติบโต'},
+      rainy:{name:'🌧️ Rainy Garden', sub:'สวนที่กำลังเผชิญฝน',
+        summary:'ช่วงนี้ฝนอาจตกบ่อยหน่อยในสวนของคุณ มีทั้งความเหนื่อยล้า ความกังวล และความกดดันที่แวะเวียนเข้ามามากกว่าปกติ แต่ถึงท้องฟ้าจะครึ้มแค่ไหน ในใจคุณก็ยังมีไฟเล็ก ๆ ที่ไม่ยอมดับ และนั่นคือสิ่งที่งดงามมาก เพราะฝนไม่ได้มาเพื่อทำลายสวนเสมอไป บางครั้งมันคือสิ่งที่ค่อย ๆ หล่อเลี้ยงการเติบโตที่เรายังมองไม่เห็น',
+        char:['ช่วงนี้ความตึงในตัวแทบไม่ค่อยหายไปไหน','บางวันก็อ่อนล้าจนอยากหยุดพัก','แต่ลึก ๆ แล้วยังมีความหวังและอยากไปต่อ','ทำอะไรสำเร็จก็รู้สึกดีแค่แป๊บเดียว แต่ก็ยังพยายามต่อ'],
+        quote:'ฝนตกก็พักใต้ร่มก่อนได้นะ เดี๋ยวฟ้าก็สดใส ☔',
+        bridge:'ฝนตกหนักแค่ไหนก็ไม่มีใครควรต้องกางร่มคนเดียว — ถ้าอยากมีคนช่วยถือร่มบ้าง ลองคุยกับใครสักคนดูนะ',
+        key:'ฝนไม่ได้มาเพื่อทำลายสวนเสมอไป\nบางครั้งฝนคือสิ่งที่หล่อเลี้ยงการเติบโตในแบบที่เรามองไม่เห็น'},
+      autumn:{name:'🍂 Autumn Garden', sub:'สวนในฤดูแห่งการพักฟื้น',
+        summary:'ตอนนี้สวนของคุณกำลังผลัดใบ คุณอาจรู้สึกเหนื่อยล้า หมดแรง หรือรู้สึกว่าตัวเองไม่ได้ก้าวไปไกลอย่างที่หวังไว้ และนั่นไม่เป็นไรเลยสักนิด เพราะทุกสวนต่างมีฤดูของมัน ต้นไม้ที่ผลัดใบไม่ได้กำลังตาย มันแค่กำลังพักเพื่อสะสมแรงสำหรับการผลิบานครั้งใหม่ ช่วงเวลาแห่งการพักก็เป็นส่วนหนึ่งของการเติบโตเช่นกัน',
+        char:['กำลังพักจากความเหนื่อยล้าที่สะสมมานาน','บางวันแค่คิดถึงพรุ่งนี้ก็เหนื่อยแล้ว','นึกภาพอนาคตของตัวเองได้ยากกว่าเมื่อก่อน','แต่การยอมให้ตัวเองได้พัก คือการดูแลตัวเองอย่างหนึ่ง'],
+        quote:'ไม่เป็นไรเลยนะ พักได้เต็มที่ คุณดูแลตัวเองมาเยอะแล้ว 🍂',
+        bridge:'ถ้าช่วงนี้หนักเกินกว่าจะถือคนเดียว การขอให้ใครสักคนช่วยถือ ไม่ใช่ความอ่อนแอเลย',
+        key:'การผลัดใบไม่ใช่ความล้มเหลว\nต้นไม้ไม่ได้สูญเสียคุณค่าเพียงเพราะมันกำลังพักฟื้น\nบางครั้งการพัก คือส่วนหนึ่งของการเติบโตเช่นกัน'},
+    },
+    scoreLabels:{sunlight:'แสงแดด · แรงใจ', water:'น้ำ · การพักผ่อน', roots:'ราก · คนรอบข้าง', storms:'ท้องฟ้าสงบ · ไร้พายุ'},
+    support:'ลองปรึกษาอาจารย์ที่ปรึกษา หน่วยให้คำปรึกษาของคณะ หรือสายด่วนสุขภาพจิต 1323 (24 ชม.)'
+  },
+  en:{
+    ui:{ lang:'TH', start:'Enter the garden', begin:'Begin the walk', reveal:'Open my garden',
+         save:'Save result', restart:'Start over', tap:'▾ tap to continue',
+         of:'of', charLabel:'Characteristics', keyLabel:'A note for you',
+         supportLabel:'Support resources', disclaimer:'This is a growth-reflection tool, not a mental-health assessment or medical diagnosis.' },
+    consent:{ title:'Consent & Privacy',
+      points:[
+        'You agree to let us collect your answers anonymously, along with your age range, year of study, and gender, to help understand the overall wellbeing of medical students nationwide.',
+        'We do not collect your name or student ID, and there is no way to trace this data back to you.',
+        'Your data will not be published or used commercially.',
+        'You can choose not to consent and still use this reflection tool as normal (your data simply won\u2019t be sent).'
+      ],
+      agree:'I agree', decline:'No thanks' },
+    demo:{ title:'Before we go in...\nlet me know you a little',
+      age:'Age range', year:'Year of study', gender:'Gender',
+      ageOpts:['18–19','20–22','23–25','26+'],
+      yearOpts:['Year 1','Year 2','Year 3','Year 4','Year 5','Year 6'],
+      genderOpts:['Male','Female','Prefer not to say'],
+      cont:'Continue' },
+    intro:{ title:'Growth of Garden', sub:'Your Mind, Your Garden',
+            lead:'A garden planted with your days — step inside and see how it\u2019s growing.',
+            caption:'Every garden has its own seasons — and every season has its worth.' },
+    story:[
+      '📱 For iOS users\n\nOpen this site in Safari\nand hide the toolbar.',
+      '🔊 A quick tip\n\nTurn on the sound on your device\nfor a better experience.',
+      'On the path to becoming a doctor,\nwe spend so much time caring for others,\nstudying for exams,\ntrying to become better,\nalways pushing forward.',
+      'Until sometimes,\nwe forget to turn back and care for ourselves.',
+      'So today, we invite you into a certain garden.\n\nThis garden is not like other gardens.\nIt isn\u2019t planted with soil and water —\nit is planted with the days of your life.',
+      'Before you stands a wooden gate,\nvines curling around its arch.\n\nThis garden has been here a long time.\nIt was only waiting for you to visit.',
+      'Before you open the gate,\ntake one deep breath.\n\nNothing inside needs to be rushed.\nNo one is waiting to grade your answers.\nIt\u2019s just you, and your garden.',
+      'Every corner of this garden\nreflects something in your life.\n\nNo need to hurry. There are no right or wrong answers.\nJust answer the way it really feels.'
+    ],
+    narr:{
+      sky:'Look up at the sky of your garden.\n\nThe sunlight here\nis the force that wakes you each day.\n\nThink for a moment —\nwhen you picture what tomorrow holds,\nwhat is the first feeling that rises?',
+      skyAfter:'You just spent a moment with yourself.\nSometimes, simply noticing how you feel\nis a form of caring for yourself.',
+      soil:'Kneel down and touch the earth.\n\nSoil is where everything gets to rest and recover\nbefore it grows again.\n\nAnd your body —\nhas it been resting like that?\nThink of a free morning with nothing to do...',
+      soilAfter:'You don\u2019t have to be in bloom all the time.\nA good garden isn\u2019t beautiful because it blossoms every day —\nit\u2019s beautiful because it knows when to rest.',
+      roots:'Beneath the soil lie roots no one can see.\n\nRoots never show off.\nBut they are what hold a tree in place\non the days the wind blows hard.',
+      rootsB:'People have roots too —\nthe ones we think of on the heavy days.',
+      rootsAfter:'You don\u2019t have to grow all on your own.\nEven the strongest tree\nstill relies on its roots.',
+      weather:'Every garden must face its own weather.\n\nRain and storms never ask permission before they come —\njust like the stress in our lives.',
+      flowers:'The flowers in this garden don\u2019t bloom to be seen.\n\nThey bloom every time you finish something,\neven the smallest thing.',
+      path:'At the far end of the garden, a path stretches onward.\n\nThis path is the days ahead of you.\nNo one knows where it ends —\nnot even the keeper of the garden.',
+      closing:'You have reached the heart of the garden.\n\nEvery answer you gave has become the light, the water,\nthe roots, and the sky of this place.\n\nAre you ready...\nto see how your garden is growing?'
+    },
+    q:[
+      {prompt:'And the sky of your tomorrow morning — what is it like?',
+       opts:['Sunlight slips through the curtain to find me first',
+             'A sky clear enough to walk under all day',
+             'A flat grey sky, no wind at all',
+             'I want to pull the clouds over me and sleep on']},
+      {prompt:'On a morning like that, what is your soil like?',
+       opts:['Moist earth, still smelling of last night\u2019s rain',
+             'The soil is fine — it just asks for a little more water',
+             'However much I water it, the soil stays dry inside',
+             'The soil wants to sleep through a whole season']},
+      {prompt:'If a strong wind rose today, what would your roots be like?',
+       opts:['My roots touch the roots of the tree beside me',
+             'I know where my neighbors\u2019 roots are, but I\u2019d have to feel around a while',
+             'I want to reach my roots out, but I\u2019m afraid of weighing another tree down',
+             'I stand in the wind on my own roots, alone']},
+      {prompt:'These past week or two, what has the weather in your garden been like most often?',
+       opts:['Rain comes and goes; the sky clears quickly',
+             'Thunder now and then; the leaves tremble sometimes',
+             'Heavy clouds hang over the garden almost every day',
+             'So used to storms I barely feel the rain anymore']},
+      {prompt:'These days, what are the flowers in your garden like?',
+       opts:['When the first one blooms, I want to call someone to see it',
+             'It blooms for a moment, then the petals fall',
+             'Blooming feels like nothing — it was supposed to bloom anyway',
+             'Looking across the garden, I can\u2019t see that anything ever bloomed']},
+      {prompt:'Looking down that path, what do you feel?',
+       opts:['I want to know what waits beyond the bend',
+             'There\u2019s a thin mist, but I trust I\u2019ll find the way as I walk',
+             'Just looking down the long path makes me tired',
+             'I stand at the fork, unable to tell which way to go']},
+    ],
+    bands:{
+      blooming:{name:'🌸 Blooming Garden', sub:'A garden in bloom',
+        summary:'Right now your heart is like a garden in full bloom. Warm sunlight is pouring in, you have the energy to keep going, and you can see the meaning in what you\u2019re doing. The flowers in your garden are opening up, the trees are strong, and the weather is good for growing. This is the season where you get to harvest the fruit of caring for yourself all this time \u2014 don\u2019t forget to pause and admire it for a moment.',
+        char:['Full of energy and enjoying what you\u2019re doing','Have people around who support you and keep you warm','Stress comes sometimes, but once it passes your heart lightens quickly','Still see your goals and your path clearly'],
+        quote:'You did really well today \u2014 be proud of yourself too 🌷',
+        key:'You don\u2019t have to be in bloom all the time —\nbut in this season, don\u2019t forget to pause and admire how much you\u2019ve already grown.'},
+      growing:{name:'🌿 Growing Garden', sub:'A garden still growing',
+        summary:'You\u2019re like a tree growing a little more every day. Some days you meet strong winds or feel tired along the way, but your roots still run deep and your trunk is still steady. You may not have reached the place you dreamed of yet, but every step you\u2019ve taken has made you taller than you were yesterday. Growth is never measured by speed \u2014 it\u2019s measured by the fact that you haven\u2019t stopped walking.',
+        char:['Being tired sometimes is normal for someone who\u2019s trying','Still trust that you\u2019re growing bit by bit','Still see the goals ahead even if the road is long','Some mornings you\u2019d rather stay in bed, but you still get up and do what you set out to do'],
+        quote:'Let\u2019s grow slowly, together \u2014 no need to rush 🌱',
+        key:'Growth isn\u2019t measured by speed.\nEven if the road ahead isn\u2019t clear yet, every step you take is still growth.'},
+      rainy:{name:'🌧️ Rainy Garden', sub:'A garden in the rain',
+        summary:'Lately it may be raining more often in your garden \u2014 tiredness, worry, and pressure have been visiting more than usual. But no matter how grey the sky gets, there\u2019s still a small flame in your heart that refuses to go out, and that is something truly beautiful. Because rain doesn\u2019t always come to destroy a garden. Sometimes it\u2019s what quietly nourishes a kind of growth we can\u2019t yet see.',
+        char:['Lately the tension inside rarely fully goes away','Some days you\u2019re so worn out you want to stop and rest','But deep down you still have hope and want to keep going','Small wins only feel good for a moment, but you keep trying anyway'],
+        quote:'When it rains, you can rest under an umbrella for a while \u2014 the sky will clear soon ☔',
+        bridge:'No one should have to hold the umbrella alone, no matter how hard it rains \u2014 if you\u2019d like someone to help hold it, try talking to someone.',
+        key:'Rain doesn\u2019t always come to destroy a garden.\nSometimes rain is what nourishes growth in ways we can\u2019t see.'},
+      autumn:{name:'🍂 Autumn Garden', sub:'A garden in its resting season',
+        summary:'Right now your garden is shedding its leaves. You may feel tired, out of energy, or like you haven\u2019t come as far as you hoped \u2014 and that is completely okay. Every garden has its seasons. A tree that sheds its leaves isn\u2019t dying; it\u2019s just resting to gather strength for the next time it blooms. A season of rest is part of growing too.',
+        char:['Resting from tiredness that has built up for a long time','Some days just thinking about tomorrow feels exhausting','Picturing your own future is harder than it used to be','But letting yourself rest is a way of caring for yourself'],
+        quote:'It\u2019s completely okay \u2014 rest as much as you need. You\u2019ve taken good care of yourself for so long 🍂',
+        bridge:'If things feel too heavy to carry alone right now, asking someone to help carry them is not weakness at all.',
+        key:'Shedding leaves is not failure.\nA tree doesn\u2019t lose its worth just because it\u2019s resting.\nSometimes rest is part of growth too.'},
+    },
+    scoreLabels:{sunlight:'Sunlight · Motivation', water:'Water · Rest', roots:'Roots · Support', storms:'Calm skies · No storms'},
+    support:'Reach out to your advisor, your faculty counseling service, or the Mental Health Hotline 1323 (24 hrs).'
+  }
+};
+
+/* ================================================================
+   SCORING MODEL — 4 variables, each 0..1
+   Each question maps to one theme. pos:true => options run
+   struggling(0) -> thriving(3). Adjust mapping/weights freely.
+   ================================================================ */
+/* Options are written A(best) -> D(worst), i.e. index 0 = best.
+   So value = 1 - index/3  (A=1.0, B=.67, C=.33, D=0).
+   Q4 weather: calm(A)=best already maps to high "storms" score,
+   where high storms = calm skies / low pressure. */
+const QUESTIONS = [
+  {theme:'sunlight', key:'sky'},      // Q1 sky     -> motivation / outlook
+  {theme:'water',    key:'soil'},     // Q2 soil    -> rest & self-care
+  {theme:'roots',    key:'roots'},    // Q3 roots   -> support system
+  {theme:'storms',   key:'weather'},  // Q4 weather -> calm(high)=low pressure
+  {theme:'sunlight', key:'flowers'},  // Q5 flowers -> accomplishment -> purpose
+  {theme:'sunlight', key:'path'},     // Q6 path    -> hope / direction -> purpose
+];
+const answers = new Array(QUESTIONS.length).fill(null);
+
+function scores(){
+  const acc={}, cnt={};
+  QUESTIONS.forEach((q,i)=>{
+    if(answers[i]==null) return;
+    const v = 1 - answers[i]/3;             // index 0 (A) = best = 1.0
+    acc[q.theme]=(acc[q.theme]||0)+v; cnt[q.theme]=(cnt[q.theme]||0)+1;
+  });
+  const themes=['sunlight','water','roots','storms'];
+  const out={};
+  themes.forEach(t=> out[t] = cnt[t]? acc[t]/cnt[t] : 0.5 );
+  return out;
+}
+
+/* Map the 4 scores -> Energy & Purpose axes -> one of 4 gardens.
+   Energy  = rest, minus stress pressure, cushioned by support.
+   Purpose = motivation/meaning (sunlight).
+   Tweak thresholds here. */
+function band(sc){
+  // Energy  = how much you have left: rest (water) + calm skies (storms) + support cushion (roots)
+  // Purpose = whether you still see meaning/goals: sunlight (motivation, flowers, path all feed sunlight)
+  const energy  = sc.water*0.45 + sc.storms*0.35 + sc.roots*0.20;
+  const purpose = sc.sunlight;
+  // Blooming: plenty of energy AND clear purpose
+  if(energy>=0.72 && purpose>=0.66) return 'blooming';
+  // Growing: purpose still solid, energy dipping (tired but still sees meaning)
+  if(purpose>=0.55)                 return 'growing';
+  // Rainy: purpose fading but not gone, still some drive left
+  if(purpose>=0.30)                 return 'rainy';
+  // Autumn: low energy, low purpose
+  return 'autumn';
+}
+
+/* ================================================================
+   WALK SEQUENCE  —  ordered narration + question pages.
+   type 'narr' uses T.narr[key]; type 'q' uses QUESTIONS[qi].
+   bg selects ASSETS.backgrounds[bg]. Final narr has end:true.
+   ================================================================ */
+const WALK = [
+  {type:'narr', key:'sky',      bg:'bg1'},
+  {type:'q',    qi:0,           bg:'bg1'},
+  {type:'narr', key:'skyAfter', bg:'bg1'},
+
+  {type:'narr', key:'soil',     bg:'bg2'},
+  {type:'q',    qi:1,           bg:'bg2'},
+  {type:'narr', key:'soilAfter',bg:'bg2'},
+
+  {type:'narr', key:'roots',    bg:'bg3'},
+  {type:'narr', key:'rootsB',   bg:'bg3'},
+  {type:'q',    qi:2,           bg:'bg3'},
+  {type:'narr', key:'rootsAfter',bg:'bg3'},
+
+  {type:'narr', key:'weather',  bg:'bg4'},
+  {type:'q',    qi:3,           bg:'bg4'},
+
+  {type:'narr', key:'flowers',  bg:'bg5'},
+  {type:'q',    qi:4,           bg:'bg5'},
+
+  {type:'narr', key:'path',     bg:'bg6'},
+  {type:'q',    qi:5,           bg:'bg6'},
+
+  {type:'narr', key:'closing',  bg:'bg0', end:true},
+];
+
+/* ================================================================
+   ENGINE
+   ================================================================ */
+let lang='th';
+let stage='intro';
+let storyStep=0;
+let walkStep=0;
+let consented=false;
+let hasSentResult=false;
+let demoAgeIdx=null, demoYearIdx=null, demoGenderIdx=null;
+// Canonical (language-independent) labels used only for what gets SENT to the
+// sheet, so the data stays consistent no matter which language the user had
+// selected when they tapped. Order must match T.th.demo/T.en.demo option arrays.
+const DEMO_CANON = {
+  age:['18-19','20-22','23-25','26+'],
+  year:['Year 1','Year 2','Year 3','Year 4','Year 5','Year 6'],
+  gender:['Male','Female','Prefer not to say']
+};
+const GSHEET_URL='https://script.google.com/macros/s/AKfycbzgoQAEsjtJckanv5FlP5AUjqj9d_EzKziNhxN3GMYz1aK9lv67B2HoALO-Zsq1CDrDCA/exec';
+
+// QA/dev override: append ?band=blooming | growing | rainy | autumn to the URL
+// to force a specific result screen without answering all 6 questions.
+// Any other/missing value is ignored and normal scoring is used.
+const VALID_BANDS=['blooming','growing','rainy','autumn'];
+const _bandParam=new URLSearchParams(window.location.search).get('band');
+const forcedBand = VALID_BANDS.includes(_bandParam) ? _bandParam : null;
+
+const $=id=>document.getElementById(id);
+const L=()=>T[lang];
+
+/* Backgrounds now come off the CDN, so they arrive a moment after the screen
+   does. Each scene paints BG_FALLBACK immediately and upgrades itself to the
+   real image once it has loaded; a failed download simply keeps the gradient,
+   so a blocked CDN degrades to a plain garden rather than a broken page.
+   filename -> 'loading' | 'ok' | 'fail', so each image is fetched only once. */
+const _bgState = {};
+let _bgWanted = null;
+
+function bgUrl(src){ return src.startsWith('url(') ? src : `url("${src}")`; }
+
+function setBg(bg){
+  const src = ASSETS.backgrounds[bg] || ASSETS.backgrounds.bg0;
+  const app = $('app');
+  _bgWanted = src;
+
+  // gradient slot, or an already-resolved value (data:/http/url(...)) — paint as-is
+  if(!src || src.startsWith('linear') || src.startsWith('radial')){
+    app.style.backgroundImage = src || BG_FALLBACK; return;
+  }
+  if(src.startsWith('url(') || src.startsWith('data:') || src.startsWith('http')){
+    app.style.backgroundImage = bgUrl(src); return;
+  }
+
+  // CDN filename
+  const href = CDN + src;
+  if(_bgState[src] === 'ok'){ app.style.backgroundImage = bgUrl(href); return; }
+
+  app.style.backgroundImage = BG_FALLBACK;
+  if(_bgState[src]) return;              // already loading, or already failed
+  _bgState[src] = 'loading';
+  const img = new Image();
+  img.onload  = ()=>{ _bgState[src]='ok';
+                      if(_bgWanted===src) app.style.backgroundImage = bgUrl(href); };
+  img.onerror = ()=>{ _bgState[src]='fail'; };   // gradient stays
+  img.src = href;
+}
+
+/* Warm the cache for every distinct background while the reader is still on the
+   intro, so scene changes mid-walk don't flash the gradient. */
+function preloadBackgrounds(){
+  const seen = {};
+  Object.values(ASSETS.backgrounds).forEach(src=>{
+    if(!src || seen[src] || _bgState[src]) return;
+    if(src.startsWith('linear')||src.startsWith('radial')||src.startsWith('url(')
+       ||src.startsWith('data:')||src.startsWith('http')) return;
+    seen[src]=1; _bgState[src]='loading';
+    const img=new Image();
+    img.onload =()=>{ _bgState[src]='ok'; };
+    img.onerror=()=>{ _bgState[src]='fail'; };
+    img.src=CDN+src;
+  });
+}
+
+function transition(fn){
+  const cur=document.querySelector('.screen.active');
+  if(cur){cur.classList.remove('active'); setTimeout(()=>{fn();},260);}
+  else fn();
+}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+/* ---- intro ---- */
+function renderIntro(){
+  const t=L();
+  $('introKeeper').src=KEEPER_IMG;
+  $('introTitle').textContent=t.intro.title;
+  $('introSub').textContent=t.intro.sub;
+  $('introLead').textContent=t.intro.lead;
+  $('introCaption').textContent=t.intro.caption;
+  $('startBtn').textContent=t.ui.start;
+  setBg('bg0');
+  if(typeof setProgress==='function') setProgress(false);
+}
+
+/* ---- story ---- */
+function renderStory(){
+  const t=L();
+  $('storyKeeper').src=KEEPER_IMG;
+  $('storyBubble').textContent=t.story[storyStep];
+  const last = storyStep>=t.story.length-1;
+  $('storyHint').textContent = last? '' : t.ui.tap;
+  $('storyHint').style.display = last?'none':'block';
+  restartHint($('storyHint'), !last);
+  $('storyBegin').style.display = last?'inline-block':'none';
+  $('storyBegin').textContent = t.ui.begin;
+}
+function storyTap(){
+  if(storyStep < L().story.length-1){
+    storyStep++;
+    if(storyStep===2) initAudio(); // start music right after the sound-on tip page
+    renderStory();
+  }
+}
+
+/* ---- walk ---- */
+function currentQi(){
+  // derive question index from #question-pages before walkStep
+  let qi=0;
+  for(let i=0;i<walkStep;i++) if(WALK[i].type==='q') qi++;
+  return qi;
+}
+function restartHint(el, on){
+  el.classList.remove('reveal');
+  if(!on) return;
+  void el.offsetWidth; // reflow so the animation restarts
+  el.classList.add('reveal');
+}
+function setProgress(vis){
+  const p=$('progress');
+  if(!vis){ p.classList.remove('show'); return; }
+  p.classList.add('show');
+  const total=WALK.length-1;
+  const pct=Math.max(6, Math.round((walkStep/total)*100));
+  $('progressFill').style.width=pct+'%';
+}
+function syncFromWalk(){
+  if(walkStep>=WALK.length){
+    stage='result'; setProgress(false);
+    renderResult();
+    show('result');
+    return;
+  }
+  renderWalk();
+}
+function renderWalk(){
+  const step=WALK[walkStep];
+  setBg(step.bg);
+  show('walk');
+  setProgress(true);
+  if(step.type==='narr'){
+    $('walkNarr').style.display='flex';
+    $('walkQ').style.display='none';
+    $('walkKeeper').src=KEEPER_IMG;
+    $('walkBubble').textContent=L().narr[step.key] || '['+step.key+']';
+    if(step.end){
+      $('walkHint').style.display='none';
+      $('walkReveal').style.display='inline-block';
+      $('walkReveal').textContent=L().ui.reveal;
+    }else{
+      $('walkHint').style.display='block';
+      $('walkHint').textContent=L().ui.tap;
+      restartHint($('walkHint'), true);
+      $('walkReveal').style.display='none';
+    }
+  }else{
+    $('walkNarr').style.display='none';
+    $('walkQ').style.display='block';
+    renderQuestion(step.qi);
+  }
+}
+function renderQuestion(qi){
+  const t=L(); const q=t.q[qi];
+  $('qKeeper').src=KEEPER_IMG;
+  $('qPrompt').textContent=q.prompt;
+  const box=$('qOpts'); box.innerHTML='';
+  q.opts.forEach((o,idx)=>{
+    const b=document.createElement('button');
+    b.className='opt'+(answers[qi]===idx?' sel':'');
+    b.textContent=o;
+    b.onclick=()=>choose(idx);
+    box.appendChild(b);
+  });
+}
+function choose(v){
+  const step=WALK[walkStep];
+  if(step.type!=='q') return;
+  answers[step.qi]=v;
+  renderQuestion(step.qi); // show highlight
+  setTimeout(()=>{ walkStep++; transition(()=>syncFromWalk()); },230);
+}
+function walkTap(){
+  const step=WALK[walkStep];
+  if(step && step.type==='narr' && !step.end){
+    walkStep++; transition(()=>syncFromWalk());
+  }
+}
+
+/* ---- result ---- */
+function levelWord(v){
+  // v is 0..1; returns a plain-language level word matching current language
+  const words = lang==='th' ? {high:'สูง', mid:'ปานกลาง', low:'ต่ำ'} : {high:'High', mid:'Medium', low:'Low'};
+  if(v>=0.66) return words.high;
+  if(v>=0.34) return words.mid;
+  return words.low;
+}
+function scoreLabel(v){ return Math.round(v*100)+' ('+levelWord(v)+')'; }
+
+// NOTE: this is a light spam filter, not real security. It's visible to anyone
+// who views this page's source, so it can't stop a determined bad actor —
+// it only filters out generic/automated spam hitting the endpoint by accident.
+// The Apps Script endpoint is inherently public (see doPost in Code.txt);
+// this survey is low-stakes/anonymous so that tradeoff is acceptable.
+const SUBMIT_TOKEN='gog-2026-sec11-wellbeing';
+const SESSION_SENT_KEY='growth-of-garden:submitted';
+
+function sendResultData(sc,g){
+  let alreadySent=false;
+  try{ alreadySent = sessionStorage.getItem(SESSION_SENT_KEY)==='1'; }
+  catch(e){ /* sessionStorage blocked in this environment (e.g. sandboxed preview iframe) — proceed without the guard */ }
+
+  if(alreadySent) return;
+  const t=L();
+  const bd=t.bands[g];
+  const payload={
+    token:SUBMIT_TOKEN,
+    age:DEMO_CANON.age[demoAgeIdx]||'',
+    year:DEMO_CANON.year[demoYearIdx]||'',
+    gender:DEMO_CANON.gender[demoGenderIdx]||'',
+    sunlight:scoreLabel(sc.sunlight),
+    water:scoreLabel(sc.water),
+    roots:scoreLabel(sc.roots),
+    storms:scoreLabel(sc.storms),
+    garden:bd.name+' / '+bd.sub,
+    lang:lang.toUpperCase()
+  };
+  fetch(GSHEET_URL,{
+    method:'POST',
+    mode:'no-cors',
+    headers:{'Content-Type':'text/plain'},
+    body:JSON.stringify(payload)
+  }).then(()=>{
+    try{ sessionStorage.setItem(SESSION_SENT_KEY,'1'); }catch(e){ /* ignore if blocked — e.g. sandboxed preview iframe */ }
+  }).catch(()=>{ /* best-effort submission; network failure is not user-facing */ });
+}
+
+function renderResult(){
+  const t=L();
+  const sc=scores();
+  const g = forcedBand || band(sc);
+  const bd=t.bands[g];
+
+  if(consented && !hasSentResult){ sendResultData(sc,g); hasSentResult=true; }
+
+  $('rTitle').textContent=bd.name;
+  $('rSub').textContent=bd.sub;
+  $('rSummary').textContent=bd.summary;
+  $('rQuote').textContent=bd.quote||'';
+
+  // scene
+  const scene=$('rScene'); scene.innerHTML='';
+  const soil=document.createElement('img'); soil.className='soil'; soil.src=ASSETS.soil; scene.appendChild(soil);
+  const tree=document.createElement('img'); tree.className='tree'; tree.src=ART.tree[g]; scene.appendChild(tree);
+  const fkeys=Object.keys(ART.flower);
+  const nFl = g==='blooming'?3 : g==='growing'?2 : g==='rainy'?1 : 0;
+  for(let i=0;i<nFl;i++){
+    const f=document.createElement('img'); f.className='fl'; f.src=ART.flower[fkeys[i%fkeys.length]];
+    f.style.left=(20+i*28)+'%'; f.style.animationDelay=(i*0.4)+'s';
+    scene.appendChild(f);
+  }
+
+  // characteristics
+  $('rCharLabel').textContent=t.ui.charLabel;
+  const ul=$('rChar'); ul.innerHTML='';
+  bd.char.forEach(c=>{const li=document.createElement('li');li.textContent=c;ul.appendChild(li);});
+
+  // key message
+  $('rKeyLabel').textContent=t.ui.keyLabel;
+  $('rKey').textContent=bd.key;
+
+  // bars
+  const bars=$('rBars'); bars.innerHTML='';
+  const colors={sunlight:'var(--sun)',water:'var(--rain)',roots:'var(--accent-deep)',storms:'var(--autumn)'};
+  ['sunlight','water','roots','storms'].forEach(k=>{
+    const row=document.createElement('div'); row.className='bar-row';
+    row.innerHTML=`<div class="bar-top"><span>${t.scoreLabels[k]}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="background:${colors[k]}"></div></div>`;
+    bars.appendChild(row);
+    requestAnimationFrame(()=>{ row.querySelector('.bar-fill').style.width=Math.round(sc[k]*100)+'%'; });
+  });
+
+  // conditional support box
+  const showSup = (g==='rainy'||g==='autumn');
+  $('rSupport').style.display = showSup?'block':'none';
+  if(showSup){ $('rSupportLabel').textContent=t.ui.supportLabel; $('rSupportText').textContent=(bd.bridge?bd.bridge+'\n\n':'')+t.support; }
+
+  $('saveBtn').textContent=t.ui.save;
+  $('restartBtn').textContent=t.ui.restart;
+  $('rDisclaimer').textContent=t.ui.disclaimer;
+
+  // scroll hint
+  const sh=$('scrollHint'); sh.style.opacity='1';
+  $('result').onscroll=()=>{ if($('result').scrollTop>40) sh.style.opacity='0'; };
+}
+
+/* ---- consent ---- */
+function renderConsent(){
+  const t=L();
+  $('consentTitle').textContent=t.consent.title;
+  const ul=$('consentList'); ul.innerHTML='';
+  t.consent.points.forEach(p=>{const li=document.createElement('li');li.textContent=p;ul.appendChild(li);});
+  $('consentAgree').textContent=t.consent.agree;
+  $('consentDecline').textContent=t.consent.decline;
+}
+function goConsent(){ stage='consent'; transition(()=>{setProgress(false);renderConsent();show('consent');}); }
+function consentAndContinue(agree){
+  consented=agree;
+  goStory();
+}
+
+/* ---- demographics (only shown if consent was given) ---- */
+function renderDemo(){
+  const t=L().demo;
+  $('demoTitle').textContent=t.title;
+  $('demoAgeLabel').textContent=t.age;
+  $('demoYearLabel').textContent=t.year;
+  $('demoGenderLabel').textContent=t.gender;
+  buildDemoOpts('demoAgeOpts', t.ageOpts, demoAgeIdx, i=>{demoAgeIdx=i; renderDemo();});
+  buildDemoOpts('demoYearOpts', t.yearOpts, demoYearIdx, i=>{demoYearIdx=i; renderDemo();});
+  buildDemoOpts('demoGenderOpts', t.genderOpts, demoGenderIdx, i=>{demoGenderIdx=i; renderDemo();});
+  $('demoContinue').textContent=t.cont;
+  $('demoContinue').disabled = !(demoAgeIdx!==null && demoYearIdx!==null && demoGenderIdx!==null);
+  $('demoContinue').style.opacity = $('demoContinue').disabled ? '.5' : '1';
+}
+function buildDemoOpts(containerId, opts, currentIdx, onPick){
+  const box=$(containerId); box.innerHTML='';
+  opts.forEach((label,idx)=>{
+    const b=document.createElement('button');
+    b.className='demo-opt'+(currentIdx===idx?' sel':'');
+    b.textContent=label;
+    b.onclick=()=>onPick(idx);
+    box.appendChild(b);
+  });
+}
+function goDemo(){ stage='demo'; transition(()=>{setProgress(false);renderDemo();show('demo');}); }
+
+/* ---- flow control ---- */
+function begin(){ goConsent(); }
+function goStory(){ stage='story'; storyStep=0; preloadMusic(); transition(()=>{setProgress(false);renderStory();show('story');}); }
+function startWalk(){ stage='walk'; walkStep=0; $('langBtn').style.display='none'; $('muteBtn').style.display='none'; transition(()=>{syncFromWalk();}); }
+function restart(){
+  answers.fill(null); walkStep=0; storyStep=0; consented=false; hasSentResult=false; demoAgeIdx=null; demoYearIdx=null; demoGenderIdx=null; stage='intro'; $('langBtn').style.display=''; muted=false; if(audio){audio.pause();audio=null;} musicStarted=false; $('muteBtn').style.display='none'; $('muteBtn').textContent='🔊';
+  transition(()=>{renderIntro();show('intro');});
+}
+
+/* ---- language ---- */
+function toggleLang(){
+  lang = lang==='th'?'en':'th';
+  document.documentElement.lang=lang;
+  document.body.classList.toggle('en', lang==='en');
+  $('langBtn').textContent=L().ui.lang;
+  // re-render current stage
+  if(stage==='intro') renderIntro();
+  else if(stage==='story') renderStory();
+  else if(stage==='consent') renderConsent();
+  else if(stage==='demo') renderDemo();
+  else if(stage==='walk') renderWalk();
+  else if(stage==='result') renderResult();
+}
+
+/* ---- music ----
+   The track streams from the CDN now, so it can't start the instant it's asked
+   for. The element is built and told to buffer as soon as the reader opens the
+   story, and only actually plays at storyStep 2 (right after the sound-on tip),
+   which keeps that timing exactly as designed while hiding the download.
+   If the track can't be fetched at all, the mute button hides itself rather
+   than sitting there controlling nothing. */
+let audio=null, muted=false, musicStarted=false;
+
+function ensureAudio(){
+  if(audio || !MUSIC_SRC) return audio;
+  audio=new Audio();
+  audio.loop=true; audio.volume=0.45; audio.preload='auto';
+  audio.addEventListener('error', ()=>{ $('muteBtn').style.display='none'; });
+  audio.src=MUSIC_SRC;
+  return audio;
+}
+/* Start buffering, without making a sound. */
+function preloadMusic(){ const a=ensureAudio(); if(a) a.load(); }
+
+function initAudio(){
+  if(musicStarted) return;
+  const a=ensureAudio(); if(!a) return;
+  musicStarted=true;
+  if(!muted) a.play().catch(()=>{});
+  $('muteBtn').style.display='';
+}
+function toggleMute(){
+  muted=!muted;
+  if(audio){ if(muted) audio.pause(); else audio.play().catch(()=>{}); }
+  $('muteBtn').textContent = muted ? '🔇' : '🔊';
+}
+
+/* ---- ambient leaves ---- */
+function spawnLeaves(){
+  const a=$('ambient'); const leaves=['🍃','🌿','🍂'];
+  for(let i=0;i<9;i++){
+    const l=document.createElement('div'); l.className='leaf';
+    l.textContent=leaves[i%leaves.length];
+    l.style.left=Math.random()*100+'%';
+    l.style.animationDuration=(9+Math.random()*8)+'s';
+    l.style.animationDelay=(Math.random()*8)+'s';
+    l.style.fontSize=(14+Math.random()*12)+'px';
+    a.appendChild(l);
+  }
+}
+
+/* ================================================================
+   WIRE UP
+   ================================================================ */
+window.addEventListener('DOMContentLoaded',()=>{
+  renderIntro(); show('intro'); spawnLeaves(); preloadBackgrounds();
+  $('langBtn').textContent=L().ui.lang;
+
+  $('startBtn').onclick=()=>{ begin(); };
+  $('storyBegin').onclick=()=>{ if(consented) goDemo(); else startWalk(); };
+  $('consentAgree').onclick=()=>consentAndContinue(true);
+  $('consentDecline').onclick=()=>consentAndContinue(false);
+  $('demoContinue').onclick=()=>{ if(demoAgeIdx!==null&&demoYearIdx!==null&&demoGenderIdx!==null) startWalk(); };
+  $('walkReveal').onclick=()=>{ walkStep++; transition(()=>syncFromWalk()); };
+  $('saveBtn').onclick=()=>{ alert(lang==='th'?'บันทึกแล้ว':'Saved'); };
+  $('restartBtn').onclick=restart;
+  $('langBtn').onclick=toggleLang;
+  $('muteBtn').onclick=toggleMute;
+
+  // tap-to-advance for story + walk narration
+  $('story').addEventListener('click',e=>{ if(e.target.id==='storyBegin')return; storyTap(); });
+  $('walk').addEventListener('click',e=>{
+    if(e.target.closest('.opt')||e.target.id==='walkReveal')return;
+    if(WALK[walkStep] && WALK[walkStep].type==='narr') walkTap();
+  });
+});
+</script>
+</body>
+</html>
