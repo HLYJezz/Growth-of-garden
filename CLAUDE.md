@@ -27,8 +27,11 @@ This is a "Growth Reflection" tool, **NOT a mental-health assessment**. Never us
 ## Design language (locked decisions)
 - Questions are **pure garden metaphor** — options must never contain real-world words that reveal which answer is "good" (validity/social-desirability decision). The real-life mapping lives ONLY in the narration before each question (e.g., "the sunlight is what wakes you each day").
 - Story premise: "this garden is planted with your days; every corner reflects your life."
-- Result copy (summaries, cute quotes, key messages) is Bam-approved — don't rewrite without being asked.
+- Result copy (summaries, cute quotes, key messages) is Bam-approved — don't rewrite without being asked. This is why the emoji in the garden names (`🌸 Blooming Garden`) and cute quotes survived the emoji cleanup. The garden name is **also written to the Google Sheet**, so changing it mid-collection would split the data into two formats — needs a deliberate decision, not a styling pass.
 - Art direction locked: naïve folk-art gouache storybook style (reference: soft blue/green/cream/terracotta, visible brushstrokes, no people, portrait 9:16). Constant prompt string exists; per-scene art is PENDING generation. Backgrounds bg0–bg6 currently all share one placeholder image intentionally.
+- **No emoji in the visual layer.** Emoji render as glossy platform artwork (especially Apple's on iPad) and clash with gouache. Everything decorative is drawn instead: `KEEPER_IMG`, `treeArt()`, `flowerArt()`, `soilArt` are inline SVG via the `svgUri()` helper, the list bullets are CSS shapes, and the mute button uses `ICON_SOUND`/`ICON_MUTED` SVG. All use literal palette hex (SVG strings can't read `var()`). Emoji **do** remain in copy — the story tips (📱/🔊) and the Bam-approved garden names and quotes — deliberately, see below.
+- Thai face is **Mali** (handwritten, warm), English stays **Quicksand**. Sarabun was replaced because it's Thailand's government-standard document face and made a storybook feel like a form. Mali runs ~20% wider than Sarabun; every screen was checked for overflow after the swap.
+- Ambient effect is **drifting petals**, not falling leaves: `.petal` falls, nested `.sway` sways and rotates. The two axes are the point — a single `translateY` reads as dropping stones. Negative `animation-delay` spreads them on load. Respects `prefers-reduced-motion`.
 - Planned background system (not yet built): ~9 images — gate (story, zoom-in per page), sky (bright Q1 / grey-tinted Q4), soil, roots, flowers, path, + 4 seasonal result gardens. Zoom-within-scene and tint-for-mood to stretch images across pages.
 
 ## Data collection (working, live)
@@ -49,6 +52,9 @@ This is a "Growth Reflection" tool, **NOT a mental-health assessment**. Never us
 - When testing the walk end-to-end, **stub `window.fetch` first** or the result screen posts junk rows to the live Google Sheet.
 
 ## Known pending threads
-1. Gouache art generation (owner + Bam) → then build the background zoom/tint system. The loader is already in place: upload each image to `/assets` and point the `ASSETS.backgrounds` slots at the filenames.
-2. Hosting: Netlify drag-and-drop or GitHub Pages recommended; not yet set up. Because asset URLs are absolute, `index.html` can be dropped anywhere without carrying a folder alongside it.
+1. Gouache art generation (owner + Bam) → then build the background zoom/tint system. **Owner's stated plan: ALL current drawn-SVG art (keeper, 4 trees, 3 flowers, soil) gets replaced by AI-generated images**, not just the backgrounds. The drawn SVG is a stopgap that replaced emoji, not a destination.
+   - Backgrounds already have a CDN loader. The scene art (`KEEPER_IMG`, `ART.tree`, `ART.flower`, `soilArt`) does **not** — those are still inline data-URIs. Generated images must go to `/assets` + CDN too, or the file re-bloats back toward the 5MB problem that was just fixed.
+   - The scene art is layered (`.tree`/`.fl` sit over `.soil` and the background), so it needs **transparent** PNG/WebP. Most image generators return opaque rectangles — that will need alpha or background removal, or the trees appear as pasted boxes.
+   - The 4 seasonal trees should read as *the same tree* in 4 seasons. Generate one and vary it (same seed/reference) rather than four independent prompts.
+2. ~~Hosting~~ **DONE** — GitHub Pages, live at https://hlyjezz.github.io/Growth-of-garden/ (Settings → Pages → `main` / root). Every push to `main` redeploys automatically, and the same push updates the jsDelivr assets. This is the URL for iPad Safari testing. Because asset URLs are absolute, `index.html` still works from anywhere without carrying a folder alongside it.
 3. An old "music not playing" report was likely device mute / preview-tool artifact; music logic is verified correct.
