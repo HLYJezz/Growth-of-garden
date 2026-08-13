@@ -47,7 +47,7 @@ This is a "Growth Reflection" tool, **NOT a mental-health assessment**. Never us
 - Thai copy first for review; English mirrors written after approval.
 - Owner tests on iPad Safari via hosted URL (local file:// renders as text on iPadOS; sandboxed iframe previews like codeshack break sessionStorage — don't debug in those).
 - After changes, verify JS with `node --check` on the extracted <script> block. (Node is NOT installed on the Windows machine — the fallback is to load the file in a browser and confirm the script block executes with no console errors, which also exercises the real runtime.)
-- `index.html` is UTF-8 **without BOM**, LF line endings, ~6,379 Thai codepoints. Windows PowerShell 5.1 reads files as ANSI by default and will mangle the Thai — always force UTF-8 (`[System.IO.File]::ReadAllBytes` + a strict `UTF8Encoding`), and keep .ps1 helper scripts pure-ASCII or PS 5.1 mis-parses them too.
+- `index.html` is UTF-8 **without BOM**, ~6,400 Thai codepoints. The **repo** stores LF; the Windows **working copy** is CRLF because `core.autocrlf` rewrites it on checkout (harmless in the browser, but don't be surprised by the 1,296-byte difference between local and served). Windows PowerShell 5.1 reads files as ANSI by default and will mangle the Thai — always force UTF-8 (`[System.IO.File]::ReadAllBytes` + a strict `UTF8Encoding`), and keep .ps1 helper scripts pure-ASCII or PS 5.1 mis-parses them too.
 - The MP3 is 3.9MB at 112kbps — already compressed; don't recompress further without asking.
 - When testing the walk end-to-end, **stub `window.fetch` first** or the result screen posts junk rows to the live Google Sheet.
 
