@@ -158,6 +158,8 @@ body.en{font-family:var(--font-en)}
 }
 .keeper.mini{width:52px;height:52px}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+/* same motion, for elements that are centred with translateX(-50%) */
+@keyframes bobX{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-9px)}}
 
 /* ---- intro ---- */
 #intro .keeper{margin-bottom:14px}
@@ -217,7 +219,10 @@ body.en{font-family:var(--font-en)}
   border:1px solid var(--card-line);
 }
 .scene .soil{position:absolute;left:0;right:0;bottom:0;width:100%}
-.scene .tree{position:absolute;left:50%;bottom:18%;transform:translateX(-50%);height:70%;animation:bob 5s ease-in-out infinite}
+/* bobX, not bob: an animation's transform replaces the rule's transform, so
+   plain `bob` wiped out translateX(-50%) and shoved the tree half its own
+   width to the right. The centring has to live inside the keyframes. */
+.scene .tree{position:absolute;left:50%;bottom:18%;height:70%;animation:bobX 5s ease-in-out infinite}
 .scene .fl{position:absolute;bottom:14%;height:26px;animation:bob 4s ease-in-out infinite}
 .r-summary{font-size:16px;line-height:1.7;margin:6px 4px 16px}
 .cute-quote{font-size:16px;line-height:1.6;text-align:center;color:var(--accent-deep);background:rgba(255,255,255,.55);border:1px solid var(--card-line);border-radius:18px;padding:14px 16px;margin:0 2px 16px;font-weight:600}
@@ -258,7 +263,7 @@ body.en{font-family:var(--font-en)}
 .left-ctrls{display:flex;gap:8px}
 
 /* ---- scroll hint ---- */
-.scrollhint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:6;font-size:22px;color:var(--accent-deep);animation:bob 1.6s ease-in-out infinite;transition:opacity .4s;pointer-events:none}
+.scrollhint{position:absolute;bottom:16px;left:50%;z-index:6;font-size:22px;color:var(--accent-deep);animation:bobX 1.6s ease-in-out infinite;transition:opacity .4s;pointer-events:none}
 
 </style>
 </head>
@@ -499,12 +504,13 @@ const BG_FALLBACK = 'linear-gradient(180deg,#cfe3ea 0%,#e3e9d6 55%,#f2ead9 100%)
 
 const ASSETS = {
   soil: soilArt,                 // >>> real soil strip <<<
-  // DECISION: all 6 slots intentionally share one image for now — this is the
-  // placeholder state, not an oversight. The real plan is per-scene gouache
-  // illustrations (gate/sky/soil/roots/flowers/path), generated separately.
-  // To swap one in: upload it to /assets on GitHub and put its filename here.
+  // Every slot now has its own generated gouache scene. To swap one: upload it
+  // to /assets on GitHub keeping the filename, or put the new name here.
   // Slots take a CDN filename, or a full data:/http/url(...) value, or a
   // CSS gradient string — setBg() handles all four.
+  // NOTE: intro, consent, demo and the whole story all sit on bg0 — setBg() is
+  // only called by renderIntro() and renderWalk(). That's 10 screens on one
+  // painting; see the open question about giving the story its own scene.
   backgrounds:{
     bg0:'bg-gate.jpg',     // the gate you step through   (intro / story)
     bg1:'bg-sky.jpg',      // open sky                    (sunlight / motivation)
@@ -1338,7 +1344,7 @@ function goDemo(){ stage='demo'; transition(()=>{setProgress(false);renderDemo()
 
 /* ---- flow control ---- */
 function begin(){ goConsent(); }
-function goStory(){ stage='story'; storyStep=0; preloadMusic(); transition(()=>{setProgress(false);renderStory();show('story');}); }
+function goStory(){ stage='story'; storyStep=0; transition(()=>{setProgress(false);renderStory();show('story');}); }
 function startWalk(){ stage='walk'; walkStep=0; $('langBtn').style.display='none'; $('muteBtn').style.display='none'; transition(()=>{syncFromWalk();}); }
 function restart(){
   answers.fill(null); walkStep=0; storyStep=0; consented=false; hasSentResult=false; demoAgeIdx=null; demoYearIdx=null; demoGenderIdx=null; stage='intro'; $('langBtn').style.display='';
@@ -1383,8 +1389,13 @@ function ensureAudio(){
   audio.src=MUSIC_SRC;
   return audio;
 }
-/* Start buffering, without making a sound. */
-function preloadMusic(){ const a=ensureAudio(); if(a) a.load(); }
+/* Start buffering, without making a sound.
+   load() ABORTS playback and resets the element, so it must never run once the
+   track is already going — that silently killed the music at the consent page. */
+function preloadMusic(){
+  const a=ensureAudio();
+  if(a && !musicStarted) a.load();
+}
 
 /* Music should begin on the very first page. Browsers block audio until the
    reader has interacted, so the earliest it can legally start is their first
