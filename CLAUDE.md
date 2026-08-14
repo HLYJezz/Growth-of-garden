@@ -9,7 +9,9 @@ This is a "Growth Reflection" tool, **NOT a mental-health assessment**. Never us
 
 ## Architecture
 - Stage machine: `intro → consent → story → demo (demographics, only if consented) → walk → result`
-- `story[]` = tap-through intro pages (2 tip pages + 6 narrative pages). Music starts at `storyStep===2` (must remain right after the sound-on tip page).
+- `story[]` = tap-through intro pages (2 tip pages + 6 narrative pages).
+- **Music starts on the reader's first tap, anywhere** (`armMusicOnFirstTap()`, armed at `DOMContentLoaded`) — owner's decision, replacing the old `storyStep===2` trigger. Autoplay policy means this is the earliest it can legally begin; on the intro that tap is the "enter the garden" button. The `storyStep===2` call remains as a harmless idempotent fallback. Note the 🔊 sound-tip story page now appears *after* music has already started; it still earns its place for readers with the device muted.
+- **Restart does not touch the music.** It used to `pause()` and null the element, so "start over" restarted the track from the top and felt like a page reload. The reader's mute choice is preserved too.
 - `WALK[]` = ordered narration/question pages. `syncFromWalk()` routes; `renderWalk()`/`renderQuestion()` display.
 - i18n: everything lives in `T = {th:{...}, en:{...}}`. Both languages must ALWAYS be updated together. `toggleLang()` re-renders the current stage — every new screen needs a branch there (this has caused bugs twice).
 - Scoring: 4 variables 0–1 (sunlight=motivation, water=rest, roots=support, storms=calm). `band()` maps energy×purpose to 4 gardens: blooming / growing / rainy / autumn. Options run A(best)→D(worst); value = `1 - index/3`. **Do not change thresholds without explicit approval.**
@@ -21,7 +23,15 @@ This is a "Growth Reflection" tool, **NOT a mental-health assessment**. Never us
 - To swap art: upload to `/assets` on GitHub **keeping the same filename** and it goes live. jsDelivr caches `@main` for ~12h; to publish instantly, load the same path once on `purge.jsdelivr.net/gh/...`. A *new* filename must also be entered in `ASSETS.backgrounds`.
 - `ASSETS.backgrounds` slots accept four value types: a bare CDN filename, a full `data:`/`http`/`url(...)` value, or a CSS gradient string. `setBg()` handles all four.
 - Every background paints `BG_FALLBACK` (a gradient) immediately, then upgrades itself once the real image loads. A failed download keeps the gradient — a blocked CDN degrades to a plain garden, never a broken page. `preloadBackgrounds()` warms all of them during the intro; `_bgState` ensures each file is fetched once.
-- Music streams instead of being embedded, so it can't start instantly. `preloadMusic()` builds the element and buffers it at `goStory()`; `initAudio()` only *plays*, still at `storyStep===2`. If the track can't be fetched the mute button hides itself.
+- Music streams instead of being embedded, so it can't start instantly. `preloadMusic()` builds the element and starts buffering at `DOMContentLoaded`; `initAudio()` only *plays*, on the first tap. If the track can't be fetched the mute button hides itself.
+
+## Save my garden (share image)
+- The save button used to `alert('บันทึกแล้ว')` and save nothing — a button that lied. It now renders a real 1080×1920 PNG.
+- Drawn with **canvas primitives**, not a DOM screenshot, to keep the no-dependency rule (no html2canvas) and to get a portrait card sized for a phone story rather than a cropped page. Contents: garden name, sub, the tree, four score bars, Bam's quote, footer.
+- `TREE_TINTS` is the single source of truth for the seasonal tree palette — both the inline SVG on screen and the canvas tree read from it, so the saved image matches what the student was looking at. `TREE_EXTRA` holds each season's canopy detail; `ART.tree` is built from both at load.
+- The backdrop is fetched **separately with `crossOrigin` and a `?cors=1` query**. Without that, the browser reuses the non-CORS cached copy from the normal background load, which taints the canvas and makes `toBlob()` throw. `warmCardBackdrop()` prefetches it when the result renders so saving feels instant. Verified `toDataURL` succeeds, i.e. untainted.
+- Export path: `navigator.share({files})` when available (on iOS this opens the share sheet → Photos or a story), otherwise an `<a download>` fallback. A cancelled share is treated as success so it doesn't also download.
+- `SHARE_URL` is a plain constant — update it if the site ever moves to a custom domain.
 - Absolute CDN URLs (not relative paths) are deliberate: `index.html` stays portable and works from any host, a preview tool, or emailed to Bam.
 
 ## Design language (locked decisions)

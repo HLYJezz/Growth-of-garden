@@ -445,28 +445,39 @@ const flowerArt = (petal, eye)=> svgUri(
   "<circle cx='20' cy='18' r='5' fill='"+eye+"'/>"+
   "</svg>");
 
+/* One palette per season. Single source of truth: the inline SVG tree on the
+   result screen AND the canvas tree on the saved share image both read from
+   here, so the picture a student saves matches the one they were looking at. */
+const TREE_TINTS = {
+  blooming:{mid:'#7fb59a',light:'#93c4ab',dark:'#5c9a7d'},
+  growing: {mid:'#8fc0a6',light:'#a5d0ba',dark:'#6fa88e'},
+  rainy:   {mid:'#8fb4d4',light:'#a6c5de',dark:'#7098bb'},
+  autumn:  {mid:'#cf9b5f',light:'#ddb27f',dark:'#b8834a'},
+};
+/* what each season carries in its canopy — blossoms, buds, rain, falling leaves */
+const TREE_EXTRA = {
+  blooming:"<circle cx='50' cy='52' r='6' fill='#e79bb4'/><circle cx='86' cy='44' r='5' fill='#e79bb4'/>"+
+           "<circle cx='70' cy='76' r='5.5' fill='#f2c265'/><circle cx='104' cy='66' r='4.5' fill='#e79bb4'/>"+
+           "<circle cx='36' cy='72' r='4' fill='#e79bb4'/>",
+  growing: "<circle cx='56' cy='56' r='5' fill='#bfe0cd'/><circle cx='92' cy='70' r='4' fill='#bfe0cd'/>",
+  rainy:   "<path d='M40 122 l-4 11 M70 130 l-4 11 M100 120 l-4 11' stroke='#8fb4d4' "+
+           "stroke-width='4' stroke-linecap='round' fill='none'/>",
+  autumn:  "<path d='M34 120 q6 -6 12 0 q-6 6 -12 0z' fill='#cf9b5f'/>"+
+           "<path d='M98 130 q6 -6 12 0 q-6 6 -12 0z' fill='#b8834a'/>",
+};
+
 const ART = {
-  tree:{
-    // >>> replace each with real watercolor art when it's ready <<<
-    blooming: treeArt('#7fb59a','#93c4ab','#5c9a7d',
-      "<circle cx='50' cy='52' r='6' fill='#e79bb4'/><circle cx='86' cy='44' r='5' fill='#e79bb4'/>"+
-      "<circle cx='70' cy='76' r='5.5' fill='#f2c265'/><circle cx='104' cy='66' r='4.5' fill='#e79bb4'/>"+
-      "<circle cx='36' cy='72' r='4' fill='#e79bb4'/>"),
-    growing:  treeArt('#8fc0a6','#a5d0ba','#6fa88e',
-      "<circle cx='56' cy='56' r='5' fill='#bfe0cd'/><circle cx='92' cy='70' r='4' fill='#bfe0cd'/>"),
-    rainy:    treeArt('#8fb4d4','#a6c5de','#7098bb',
-      "<path d='M40 122 l-4 11 M70 130 l-4 11 M100 120 l-4 11' stroke='#8fb4d4' "+
-      "stroke-width='4' stroke-linecap='round' fill='none'/>"),
-    autumn:   treeArt('#cf9b5f','#ddb27f','#b8834a',
-      "<path d='M34 120 q6 -6 12 0 q-6 6 -12 0z' fill='#cf9b5f'/>"+
-      "<path d='M98 130 q6 -6 12 0 q-6 6 -12 0z' fill='#b8834a'/>"),
-  },
+  tree:{},   // >>> replace with real watercolor art when it's ready <<<
   flower:{
     a: flowerArt('#f4efdd','#f2c265'),
     b: flowerArt('#e79bb4','#f2c265'),
     c: flowerArt('#f2c265','#cf9b5f'),
   }
 };
+Object.keys(TREE_TINTS).forEach(k=>{
+  const t=TREE_TINTS[k];
+  ART.tree[k]=treeArt(t.mid,t.light,t.dark,TREE_EXTRA[k]);
+});
 
 /* ================================================================
    REMOTE ASSETS (jsDelivr CDN over the GitHub repo)
@@ -1063,6 +1074,167 @@ function sendResultData(sc,g){
   }).catch(()=>{ /* best-effort submission; network failure is not user-facing */ });
 }
 
+/* ================================================================
+   SAVE MY GARDEN  —  draws the result as a 1080x1920 share image
+   Everything is drawn with canvas primitives rather than screenshotting
+   the DOM, which keeps the no-dependency rule (no html2canvas) and gives
+   a portrait card sized for a phone story rather than a cropped page.
+   ================================================================ */
+const SHARE_URL = 'hlyjezz.github.io/Growth-of-garden';
+let _cardBg = null;   // CORS-clean copy of the backdrop, warmed at result time
+
+/* A normal background load doesn't set crossOrigin, and a canvas drawn from
+   that cached response would be tainted and refuse to export. The query string
+   forces a separate, CORS-clean cache entry. */
+function loadCorsImage(src){
+  return new Promise((res,rej)=>{
+    const im=new Image();
+    im.crossOrigin='anonymous';
+    im.onload=()=>res(im);
+    im.onerror=()=>rej(new Error('img'));
+    im.src=src;
+  });
+}
+function warmCardBackdrop(){
+  if(_cardBg) return;
+  const f=ASSETS.backgrounds.bg7;
+  if(!f || /^(linear|radial|url\(|data:|http)/.test(f)) return;
+  loadCorsImage(CDN+f+'?cors=1').then(im=>{_cardBg=im;}).catch(()=>{});
+}
+
+function roundRect(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+
+/* Thai runs have no spaces, so a word-only wrap would overflow. Try tokens
+   first, then break a too-long token by character. */
+function wrapText(c,text,maxW){
+  const lines=[];
+  String(text||'').split('\n').forEach(para=>{
+    let line='';
+    (para.match(/\S+\s*|\s+/g)||[]).forEach(tok=>{
+      if(c.measureText(line+tok).width<=maxW){ line+=tok; return; }
+      if(line.trim()){ lines.push(line.trim()); line=''; }
+      if(c.measureText(tok).width<=maxW){ line=tok.replace(/^\s+/,''); return; }
+      let cur='';
+      for(const ch of tok){
+        if(c.measureText(cur+ch).width>maxW && cur){ lines.push(cur); cur=ch; }
+        else cur+=ch;
+      }
+      line=cur;
+    });
+    lines.push(line.trim());
+  });
+  return lines.filter((l,i,a)=>l!=='' || i<a.length-1);
+}
+
+function drawCardTree(c,cx,cy,s,tint){
+  c.strokeStyle='#a9855f'; c.lineCap='round';
+  c.lineWidth=12*s; c.beginPath(); c.moveTo(cx,cy+74*s); c.lineTo(cx,cy); c.stroke();
+  c.lineWidth=7*s;
+  c.beginPath(); c.moveTo(cx,cy+28*s); c.lineTo(cx-22*s,cy+8*s); c.stroke();
+  c.beginPath(); c.moveTo(cx,cy+18*s); c.lineTo(cx+24*s,cy-2*s); c.stroke();
+  const el=(ex,ey,rx,ry,f)=>{ c.fillStyle=f; c.beginPath(); c.ellipse(ex,ey,rx,ry,0,0,Math.PI*2); c.fill(); };
+  el(cx,        cy-36*s, 54*s, 46*s, tint.mid);
+  el(cx-26*s,   cy-20*s, 27*s, 23*s, tint.light);
+  el(cx+28*s,   cy-24*s, 25*s, 21*s, tint.dark);
+}
+
+function buildGardenCard(){
+  const W=1080,H=1920;
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const c=cv.getContext('2d');
+  const t=L(), sc=scores(), g=forcedBand||band(sc), bd=t.bands[g];
+  const face = lang==='th' ? "'Mali',sans-serif" : "'Quicksand',sans-serif";
+
+  // backdrop, or the same gradient the app falls back to
+  if(_cardBg){
+    const r=Math.max(W/_cardBg.width,H/_cardBg.height);
+    const w=_cardBg.width*r, h=_cardBg.height*r;
+    c.drawImage(_cardBg,(W-w)/2,(H-h)/2,w,h);
+  }else{
+    const gr=c.createLinearGradient(0,0,0,H);
+    gr.addColorStop(0,'#cfe3ea'); gr.addColorStop(.55,'#e3e9d6'); gr.addColorStop(1,'#f2ead9');
+    c.fillStyle=gr; c.fillRect(0,0,W,H);
+  }
+  c.fillStyle='rgba(247,244,238,.40)'; c.fillRect(0,0,W,H);
+
+  // panel
+  c.fillStyle='rgba(255,255,255,.74)';
+  roundRect(c,64,150,W-128,1560,54); c.fill();
+
+  c.textAlign='center'; c.fillStyle='#3a4a42';
+
+  c.font='600 62px '+face;
+  c.fillText(bd.name, W/2, 300);
+  c.font='400 34px '+face; c.fillStyle='#5f7168';
+  c.fillText(bd.sub, W/2, 362);
+
+  drawCardTree(c, W/2, 590, 2.0, TREE_TINTS[g]);
+
+  // score bars
+  const rows=[['sunlight','#f2c265'],['water','#8fb4d4'],['roots','#5c9a7d'],['storms','#cf9b5f']];
+  let y=830;
+  rows.forEach(([k,col])=>{
+    c.textAlign='left'; c.font='500 32px '+face; c.fillStyle='#3a4a42';
+    c.fillText(t.scoreLabels[k], 140, y);
+    c.textAlign='right'; c.fillStyle='#5f7168';
+    c.fillText(Math.round(sc[k]*100)+'', W-140, y);
+    c.fillStyle='rgba(0,0,0,.07)'; roundRect(c,140,y+18,W-280,24,12); c.fill();
+    c.fillStyle=col; roundRect(c,140,y+18,Math.max(24,(W-280)*sc[k]),24,12); c.fill();
+    y+=112;
+  });
+
+  // Bam's quote
+  if(bd.quote){
+    c.textAlign='center'; c.font='500 36px '+face; c.fillStyle='#5c9a7d';
+    let qy=y+70;
+    wrapText(c,bd.quote,W-260).forEach(l=>{ c.fillText(l,W/2,qy); qy+=52; });
+  }
+
+  // footer
+  c.textAlign='center'; c.font='400 26px '+face; c.fillStyle='#8a9990';
+  c.fillText(lang==='th'?'สวนของเรา · Growth of Garden':'Growth of Garden · สวนของเรา', W/2, 1640);
+  c.fillText(SHARE_URL, W/2, 1682);
+  return cv;
+}
+
+async function saveResultImage(){
+  const btn=$('saveBtn'), orig=btn.textContent;
+  btn.disabled=true;
+  btn.textContent = lang==='th' ? 'กำลังบันทึก…' : 'Saving…';
+  try{
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const cv=buildGardenCard();
+    const blob=await new Promise((res,rej)=>{
+      try{ cv.toBlob(b=> b?res(b):rej(new Error('toBlob')), 'image/png'); }catch(e){ rej(e); }
+    });
+    const file=new File([blob],'my-garden.png',{type:'image/png'});
+
+    // On iOS this opens the share sheet, so it can go to Photos or a story.
+    let handled=false;
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file]}); handled=true; }
+      catch(e){ if(e && e.name==='AbortError') handled=true; }   // cancelled on purpose
+    }
+    if(!handled){
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download='my-garden.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),15000);
+    }
+  }catch(e){
+    alert(lang==='th'
+      ? 'บันทึกรูปไม่สำเร็จ ลองแคปหน้าจอแทนได้นะ'
+      : "Couldn't save the image — a screenshot works too.");
+  }finally{
+    btn.disabled=false; btn.textContent=orig;
+  }
+}
+
 function renderResult(){
   const t=L();
   const sc=scores();
@@ -1070,6 +1242,7 @@ function renderResult(){
   const bd=t.bands[g];
 
   if(consented && !hasSentResult){ sendResultData(sc,g); hasSentResult=true; }
+  warmCardBackdrop();   // fetch the CORS-clean backdrop now, so saving feels instant
 
   $('rTitle').textContent=bd.name;
   $('rSub').textContent=bd.sub;
@@ -1168,7 +1341,12 @@ function begin(){ goConsent(); }
 function goStory(){ stage='story'; storyStep=0; preloadMusic(); transition(()=>{setProgress(false);renderStory();show('story');}); }
 function startWalk(){ stage='walk'; walkStep=0; $('langBtn').style.display='none'; $('muteBtn').style.display='none'; transition(()=>{syncFromWalk();}); }
 function restart(){
-  answers.fill(null); walkStep=0; storyStep=0; consented=false; hasSentResult=false; demoAgeIdx=null; demoYearIdx=null; demoGenderIdx=null; stage='intro'; $('langBtn').style.display=''; muted=false; if(audio){audio.pause();audio=null;} musicStarted=false; $('muteBtn').style.display='none'; paintMuteBtn();
+  answers.fill(null); walkStep=0; storyStep=0; consented=false; hasSentResult=false; demoAgeIdx=null; demoYearIdx=null; demoGenderIdx=null; stage='intro'; $('langBtn').style.display='';
+  // Music deliberately survives a restart — it used to stop and start over from
+  // the top, which made "start over" feel like a page reload. The reader's mute
+  // choice is kept too.
+  if(musicStarted) $('muteBtn').style.display=''; else $('muteBtn').style.display='none';
+  paintMuteBtn();
   transition(()=>{renderIntro();show('intro');});
 }
 
@@ -1207,6 +1385,20 @@ function ensureAudio(){
 }
 /* Start buffering, without making a sound. */
 function preloadMusic(){ const a=ensureAudio(); if(a) a.load(); }
+
+/* Music should begin on the very first page. Browsers block audio until the
+   reader has interacted, so the earliest it can legally start is their first
+   tap anywhere — which on the intro screen is the "enter the garden" button.
+   We arm a one-shot listener at load; whichever gesture comes first wins. */
+function armMusicOnFirstTap(){
+  const go=()=>{
+    initAudio();
+    document.removeEventListener('pointerdown',go,true);
+    document.removeEventListener('keydown',go,true);
+  };
+  document.addEventListener('pointerdown',go,true);
+  document.addEventListener('keydown',go,true);
+}
 
 function initAudio(){
   if(musicStarted) return;
@@ -1271,6 +1463,7 @@ function spawnPetals(){
    ================================================================ */
 window.addEventListener('DOMContentLoaded',()=>{
   renderIntro(); show('intro'); spawnPetals(); preloadBackgrounds(); paintMuteBtn();
+  preloadMusic(); armMusicOnFirstTap();   // music now begins on the first page
   $('langBtn').textContent=L().ui.lang;
 
   $('startBtn').onclick=()=>{ begin(); };
@@ -1279,7 +1472,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   $('consentDecline').onclick=()=>consentAndContinue(false);
   $('demoContinue').onclick=()=>{ if(demoAgeIdx!==null&&demoYearIdx!==null&&demoGenderIdx!==null) startWalk(); };
   $('walkReveal').onclick=()=>{ walkStep++; transition(()=>syncFromWalk()); };
-  $('saveBtn').onclick=()=>{ alert(lang==='th'?'บันทึกแล้ว':'Saved'); };
+  $('saveBtn').onclick=saveResultImage;
   $('restartBtn').onclick=restart;
   $('langBtn').onclick=toggleLang;
   $('muteBtn').onclick=toggleMute;
