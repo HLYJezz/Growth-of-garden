@@ -918,6 +918,25 @@ function preloadBackgrounds(){
   });
 }
 
+/* Tap handler that survives a lost click.
+   A phone only synthesises `click` when touchstart and touchend agree on the
+   same element. If anything moves under the finger — the Safari toolbar
+   collapsing and changing 100dvh is the usual culprit — the click is never
+   fired and the button looks dead, which is exactly what "enter the garden"
+   did. Listening to pointerup as well means the tap still lands. The guard
+   stops an ordinary tap, which fires pointerup AND click, running twice. */
+function onTap(el, fn){
+  let last = 0;
+  const run = (e)=>{
+    const now = Date.now();
+    if(now - last < 700) return;
+    last = now;
+    fn(e);
+  };
+  el.addEventListener('pointerup', run);
+  el.addEventListener('click', run);
+}
+
 function transition(fn){
   const cur=document.querySelector('.screen.active');
   if(cur){cur.classList.remove('active'); setTimeout(()=>{fn();},260);}
@@ -1520,7 +1539,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   preloadMusic(); tryAutoplayMusic(); armMusicOnFirstTap();
   $('langBtn').textContent=L().ui.lang;
 
-  $('startBtn').onclick=()=>{ begin(); };
+  onTap($('startBtn'), ()=>{ begin(); });   // see onTap: phones can swallow this click
   $('storyBegin').onclick=()=>{ if(consented) goDemo(); else startWalk(); };
   $('consentAgree').onclick=()=>consentAndContinue(true);
   $('consentDecline').onclick=()=>consentAndContinue(false);
