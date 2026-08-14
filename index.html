@@ -1416,10 +1416,17 @@ function preloadMusic(){
 function armMusicOnFirstTap(){
   const go=()=>{
     initAudio();
-    document.removeEventListener('pointerdown',go,true);
+    document.removeEventListener('click',go,true);
     document.removeEventListener('keydown',go,true);
   };
-  document.addEventListener('pointerdown',go,true);
+  /* 'click', deliberately NOT 'pointerdown'. On a phone the first tap also
+     collapses the URL bar, which changes 100dvh and shifts the page; if the
+     element under the finger moves between touchstart and touchend the browser
+     cancels the click. Starting music on pointerdown made that worse by
+     revealing the mute button mid-gesture, so the intro button appeared dead:
+     the mute icon showed up and the page never advanced. Waiting for 'click'
+     means the gesture is already resolved before anything moves. */
+  document.addEventListener('click',go,true);
   document.addEventListener('keydown',go,true);
 }
 
@@ -1428,7 +1435,11 @@ function initAudio(){
   const a=ensureAudio(); if(!a) return;
   musicStarted=true;
   if(!muted) a.play().catch(()=>{});
-  $('muteBtn').style.display='';
+  // Revealed after the current gesture, never inside it — changing the topbar
+  // mid-tap can cost the page its click on mobile. setTimeout, not rAF: rAF
+  // never fires while the page isn't compositing, which would strand the
+  // button hidden.
+  setTimeout(()=>{ $('muteBtn').style.display=''; }, 0);
 }
 /* Drawn speaker icons rather than 🔊/🔇 — emoji render as glossy platform art
    on iOS and clash with everything else on screen. */
