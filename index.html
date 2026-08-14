@@ -1413,6 +1413,25 @@ function preloadMusic(){
    reader has interacted, so the earliest it can legally start is their first
    tap anywhere — which on the intro screen is the "enter the garden" button.
    We arm a one-shot listener at load; whichever gesture comes first wins. */
+/* Try to start the music the moment the page opens.
+   Browsers block audible autoplay until the reader has interacted with the
+   page, so on a first visit this is refused and we fall back to the first
+   click. It is still worth attempting: Chrome grants autoplay to sites the
+   visitor uses regularly, so a student coming back gets music straight away.
+   musicStarted is only set on SUCCESS — setting it optimistically would make
+   the click fallback a no-op and leave the app permanently silent. */
+function tryAutoplayMusic(){
+  const a=ensureAudio();
+  if(!a || muted || musicStarted) return;
+  let p;
+  try{ p=a.play(); }catch(e){ return; }
+  if(!p || typeof p.then!=='function') return;
+  p.then(()=>{
+    musicStarted=true;
+    setTimeout(()=>{ $('muteBtn').style.display=''; },0);
+  }).catch(()=>{ /* refused — armMusicOnFirstTap() picks it up */ });
+}
+
 function armMusicOnFirstTap(){
   const go=()=>{
     initAudio();
@@ -1497,7 +1516,8 @@ function spawnPetals(){
    ================================================================ */
 window.addEventListener('DOMContentLoaded',()=>{
   renderIntro(); show('intro'); spawnPetals(); preloadBackgrounds(); paintMuteBtn();
-  preloadMusic(); armMusicOnFirstTap();   // music now begins on the first page
+  // Try to play immediately; if the browser refuses, the first click starts it.
+  preloadMusic(); tryAutoplayMusic(); armMusicOnFirstTap();
   $('langBtn').textContent=L().ui.lang;
 
   $('startBtn').onclick=()=>{ begin(); };
