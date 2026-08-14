@@ -54,15 +54,9 @@ body.en{font-family:var(--font-en)}
   position:absolute; inset:0; z-index:0;
   background-size:cover;
   background-position:center;
-  transform-origin:50% 58%;      /* roughly the gate opening, so the push aims through it */
-  /* Only transform is transitioned. background-image is a DISCRETE property —
-     transitioning it buys no cross-fade and instead held the layer on the old
-     scene, so walk pages kept showing the gate. */
-  transition:transform 1.1s cubic-bezier(.25,.6,.3,1);
-  will-change:transform;
-}
-@media (prefers-reduced-motion: reduce){
-  #bgLayer{transition:none}
+  /* No transition here on purpose. background-image is a DISCRETE property —
+     transitioning it buys no cross-fade and actively held the layer on the old
+     scene, so walk pages kept showing the gate whatever setBg() wrote. */
 }
 /* phone-only base: frame the column on wider screens */
 @media (min-width:520px){
@@ -881,16 +875,10 @@ let _bgWanted = null;
 
 function bgUrl(src){ return src.startsWith('url(') ? src : `url("${src}")`; }
 
-/* How far into the painting we've pushed. 1 = as generated. */
-function setBgZoom(scale){
-  $('bgLayer').style.transform = scale===1 ? 'none' : 'scale('+scale+')';
-}
-
 function setBg(bg){
   const src = ASSETS.backgrounds[bg] || ASSETS.backgrounds.bg0;
   const app = $('bgLayer');
   _bgWanted = src;
-  setBgZoom(1);            // any scene change starts from the un-zoomed frame
 
   // gradient slot, or an already-resolved value (data:/http/url(...)) — paint as-is
   if(!src || src.startsWith('linear') || src.startsWith('radial')){
@@ -956,10 +944,6 @@ function renderIntro(){
 /* ---- story ---- */
 function renderStory(){
   const t=L();
-  /* The story never leaves the gate, so without this every page looked like the
-     intro and tapping felt like nothing happened. Pushing a little further into
-     the painting each time turns the same image into an approach. */
-  setBgZoom(1.05 + storyStep*0.035);   // page 0 already differs from the intro
   $('storyKeeper').src=KEEPER_IMG;
   $('storyBubble').textContent=t.story[storyStep];
   const last = storyStep>=t.story.length-1;
